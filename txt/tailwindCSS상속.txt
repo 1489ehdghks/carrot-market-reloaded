@@ -1,0 +1,54 @@
+ring을 예시로 상속을 받아서 사용할 수 있다.
+
+
+export default function Home() {
+  return (
+    <main className="bg-gray-100 h-screen flex items-center justify-center p-5 ">
+      <div className="bg-white shadow-md p-5 rounded-3xl w-full max-w-screen-sm flex flex-col gap-2">
+
+        <input type="text" placeholder="Search" className="w-full h-12 bg-gray-200 rounded-full pl-5 outline-none ring"/>
+        <button className="bg-black text-white p-2 rounded-full active:scale-90 focus:scale-90 transition-transform font-medium outline-none">Search</button>
+
+      </div>
+    </main>
+  );
+}
+
+
+modifier를 잘 활용하여 코드를 작성할 것.
+transition, transition-transform, active:scale-90,hover:scale-90, focus:scale-90, outline-none, font-medium, px-5, md:flex-row, md:px-5 등 잊지말것
+
+
+peer, peer-invalid:bg-red-100
+*:outline-none
+has-[.peer]:bg-red-100
+has-[:invalid]:bg-red-100
+
+odd:bg-red-100
+even:bg-blue-100
+
+last:border-b-0
+
+//animation
+
+animate-bounce
+animate-ping
+animate-pulse
+animate-bounce
+
+그룹 state 잊지말것.
+group-hover:bg-red-100
+
+apply directive 잊지말것.
+.btn{
+  @apply w-full h-12 bg-black text-white p-2 rounded-full active:scale-90 focus:scale-90 transition-transform font-medium outline-none;
+  }
+
+layer 잊지말것.
+@layer base{
+  a{
+    @apply text-blue-500;
+  }
+}
+
+

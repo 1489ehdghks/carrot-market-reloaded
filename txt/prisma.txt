@@ -1,0 +1,94 @@
+마이그레이션
+npx prisma migrate dev
+npx prisma studio
+
+Prisma Studio
+npx prisma studio
+서버를 켜놓고 또다른 터미널에서 실행
+Prisma Studio는 데이터베이스의 데이터 시각화를 위한 편집기
+Prisma 스키마 파일에 정의된 모든 모델 목록을 확인하고 데이터베이스를 관리
+
+
+https://www.prisma.io/studio
+https://www.prisma.io/docs/orm/tools/prisma-studio
+
+
+
+플러그인 prisma 다운
+cmd + shift + p로 JSON settings 파일을 열고
+
+"[prisma]": {
+"editor.defaultFormatter": "Prisma.prisma"
+}
+추가하면 save시 릴레이션 자동완성 됩니다.
+
+
+
+user User @relation(fields: [userId], references: [id])
+관계 정의
+user: 관계를 나타내는 필드 이름
+User: 연결될 모델의 이름
+@relation: 두 모델 간의 관계를 정의하는 속성
+관계 설정 상세
+fields: [userId]: SMSToken 모델에서 사용할 외래 키
+references: [id]: User 모델의 참조할 필드 (주로 기본 키)
+3. 실제 동작
+각 SMSToken은 하나의 User에만 속할 수 있습니다 (N:1 관계)
+userId 필드는 User 테이블의 id를 참조하는 외래 키가 됩니다
+데이터베이스에서는 userId 컬럼에 User의 id 값이 저장됩니다
+
+// SMS 토큰 생성 시
+const newToken = await prisma.sMSToken.create({
+  data: {
+    token: "123456",
+    user: {
+      connect: { id: userId }  // 기존 유저와 연결
+    }
+  }
+});
+
+// SMS 토큰으로 유저 정보 조회
+const tokenWithUser = await prisma.sMSToken.findUnique({
+  where: { token: "123456" },
+  include: { user: true }  // 연관된 유저 정보도 함께 조회
+});
+
+
+//해싱 라이브러리
+npm i bcrypt
+npm i @types/bcrypt
+https://codahale.com/how-to-safely-store-a-password/
+
+getIronSession은 해싱과 다르다
+cookie 안의 정보를 암호화하여 볼 수 없고 변경불가함
+encrypted 되었기 때문에 어떤 일도 할 수 없음.
+encrypted와 hashed는 다르다
+hashed는 단방향 function
+encrypted는 data의 일부분을 암호화함.
+알고리즘을 통해 decrypted(해독) 가능함
+
+
+npm i iron-session
+iron-session은 안전하고, statelss한, 쿠키 기반 JavaScript용 세션 라이브러리입니다.
+
+       {/* onclick을 사용하면 인터렉티브 하기 때문에 use client를 사용해야함. */}
+       <form action={logout}>
+            {/* <input type="submit" value="Log out" /> */}
+            <button>Log out</button>
+        </form>
+
+ironSession과 쿠키를 사용한 authentication 방식의 차이
+cookie에 대한 정보를 저장하는데 db를 사용
+ironSession은 쿠키를 생성하고 user의 id를 쿠키 안에 넣음
+그 후 암호화함.
+
+httpOnly 쿠키는 서버에서만 설정가능. 클라이언트에서 조작불가 
+
+
+//알아야할 내용
+shouldLoginAgain
+
+
+
+
+

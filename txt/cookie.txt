@@ -1,0 +1,78 @@
+cookie 만들기
+
+import { NextRequest, NextResponse } from "next/server";
+
+
+export async function middleware(request: NextRequest) {
+    const pathname = request.nextUrl.pathname;
+    if(pathname === "/"){
+        const response = NextResponse.next();
+        response.cookies.set("middleware-cookie","hello")
+        console.log("hello"); //test
+        return response;
+    }
+    if(request.nextUrl.pathname === "/profile") {
+        return Response.redirect(new URL("/", request.url));
+}
+}
+
+
+미들웨어
+
+미들웨어
+모든 request마다 미들웨어가 실행됨.
+페이지가 변경될 떄, image를 가져올 때, 자바스크립트 코드를 다운로드 할 때
+구글의 봇이 웹사이트 볼 때, favicon을 가져와야할 때 등등
+
+--예시--
+http://localhost:3000/
+http://localhost:3000/_next/static/css/app/layout.css?v=1736232613636
+http://localhost:3000/_next/static/chunks/webpack.js?v=1736232613636
+http://localhost:3000/_next/static/chunks/main-app.js?v=1736232613636
+http://localhost:3000/_next/static/chunks/app-pages-internals.js
+http://localhost:3000/_next/static/chunks/app/page.js
+http://localhost:3000/favicon.ico
+http://localhost:3000/_next/static/chunks/_app-pages-browser_node_modules_next_dist_client_dev_noop-turbopack-hmr_js.js
+
+
+원하는 request만 미들웨어가 실행되도록 하는 방법
+"/","/profile","/create-account"으로 이동할 때에만 아래의 코드로 인해 hello가 찍힘
+export const config = {
+    matcher:["/","/profile","/create-account"]
+};
+
+
+Matcher
+
+matcher를 사용하면 matcher에 지정한 특정 경로들에서만 미들웨어가 실행되도록 할 수 있습니다.
+```
+// 배열 구문을 사용하여 단일 경로 또는 다중 경로를 일치시킬 수 있습니다.
+export const config = {
+matcher: ['/profile', '/about/:path*', '/dashboard/:path*'],
+}
+```
+https://nextjs.org/docs/app/building-your-application/routing/middleware#matcher
+
+mathcer에 정규 표현식 사용
+mathcer는 전체 정규식 표현식을 허용합니다. (부정 예측 또는 문자 일치 등)
+```
+export const config = {
+matcher: ["/((?!api|_next/static|_next/image|favicon.ico).*)"],
+};
+```
+
+
+Runtime
+미들웨어는 현재 Edge 런타임과 호환되는 API만 지원합니다.
+Node.js 전용 API는 지원되지 않습니다.
+https://nextjs.org/docs/app/building-your-application/routing/middleware#runtime
+
+Runtimes
+Next.js에는 애플리케이션에서 사용할 수 있는 두 가지 서버 런타임이 있습니다.
+1. Node.js 런타임(기본값): 생태계의 모든 Node.js API 및 호환 패키지에 액세스
+2. Edge 런타임: 제한된 API를 지원하는 Edge 런타임
+https://nextjs.org/docs/app/building-your-application/rendering/edge-and-nodejs-runtimes
+
+Edge Runtime
+Next.js Edge Runtime은 미들웨어에 사용되며 지원하는 API는 아래 문서에서 확인하실 수 있습니다.
+https://nextjs.org/docs/app/api-reference/edge

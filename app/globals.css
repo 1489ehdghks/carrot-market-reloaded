@@ -2,20 +2,24 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+/* 전부 상속 */
+@layer base{
+  a{
+    @apply text-orange-500;
   }
 }
 
-body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
-}
+/* 새로운 유틸리티 추가 */
+@layer utilities{
+  .text-red-100{
+    @apply bg-red-100 font-bold font-mono;
+  }
+}   
+
+/* 새로운 컴포넌트 추가 */
+@layer components{
+    .primary-btn{
+      @apply w-full bg-orange-500 text-white text-lg rounded-md text-center hover:bg-orange-400 transition-colors;
+    }
+  }   
+
