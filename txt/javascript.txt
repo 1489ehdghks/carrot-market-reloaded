@@ -1,0 +1,29 @@
+avaScript의 falsy 값들은 다음과 같습니다:
+console.log(Boolean(false))      // false
+console.log(Boolean(0))         // false
+console.log(Boolean(""))        // false
+console.log(Boolean(null))      // false
+console.log(Boolean(undefined)) // false
+console.log(Boolean(NaN))      // false
+
+나머지 모든 값들은 truthy입니다:
+console.log(Boolean(true))      // true
+console.log(Boolean(1))         // true
+console.log(Boolean("hello"))   // true
+console.log(Boolean({}))        // true
+console.log(Boolean([]))        // true
+console.log(Boolean(42))        // true
+console.log(Boolean("false"))   // true (문자열 "false"는 truthy!)
+console.log(Boolean(" "))       // true (공백이 있는 문자열)
+
+
+&& 연산자
+
+1.truthy면 다음으로 넘어감,falsy 값을 만나면 즉시 그 값을 반환
+2.마지막까지 truthy면 마지막 값을 반환
+
+
+|| 연산자
+
+1.truthy 값을 만나면 즉시 그 값을 반환
+2.마지막까지 falsy면 마지막 값을 반환

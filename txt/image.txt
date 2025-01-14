@@ -1,0 +1,16 @@
+layout shift를 잊지말것
+srcset 사용 (다른 이미지를 보여줄 수 있도록 허용하는 속성)
+nextjs의 Image와 fill속성은 따로 공부할 것.
+fill은 높이와 너비를 모를 때 사용하면 유용
+
+이미지 최적화
+깃허브의 이미지를 사용할 때 이미지 최적화를 위해 next.config.ts에 다음 코드를 추가해야 함.
+const nextConfig: NextConfig = {
+  images: {
+    remotePatterns: [
+      {
+        hostname: "avatars.githubusercontent.com",
+      },
+    ],
+  },
+};

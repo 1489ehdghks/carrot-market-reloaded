@@ -2,24 +2,20 @@
 @tailwind components;
 @tailwind utilities;
 
-/* 전부 상속 */
-@layer base{
-  a{
+@layer base {
+  a {
     @apply text-orange-500;
   }
 }
 
-/* 새로운 유틸리티 추가 */
-@layer utilities{
-  .text-red-100{
-    @apply bg-red-100 font-bold font-mono;
+@layer utilities {
+  .text-bigger-hello {
+    @apply text-3xl font-semibold;
   }
-}   
+}
 
-/* 새로운 컴포넌트 추가 */
-@layer components{
-    .primary-btn{
-      @apply w-full bg-orange-500 text-white text-lg rounded-md text-center hover:bg-orange-400 transition-colors;
-    }
-  }   
-
+@layer components {
+  .primary-btn {
+    @apply w-full bg-orange-500 text-white  font-medium  rounded-md text-center hover:bg-orange-400 transition-colors;
+  }
+}
