@@ -54,7 +54,7 @@ async function getProduct(id:number) {
     return(
       <div>
         <div className="relative aspect-square">
-          {product.photo && <Image fill src={product.photo} alt={product.title} />}
+          {product.photo && <Image fill src={`${product.photo}/public`} alt={product.title} />}
         </div>
         <div className="p-5 flex items-center gap-3 border-b border-neutral-700">
           <div className="size-10 rounded-full overflow-hidden">

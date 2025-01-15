@@ -14,3 +14,37 @@ const nextConfig: NextConfig = {
     ],
   },
 };
+
+
+vercel이나 코드(public)에 이미지를 배치하게 될 경우
+vercel은 푸쉬를 할 때마다 서버에 있던 이미지들이 사라짐
+public의 경우 복잡해지기 쉬움. 그래서 cloudflare images를 사용해야함 
+또한 서버가 죽는다면 유저는 사진을 전부 잃음.
+
+cloudflare images를 사용하게 된다면 절차가 반복됨.
+1. 유저가 우리에게 업로드함.
+2. 우리가 cloudflare에 업로드함.
+시간이 오래 걸리고 두 번의 요청이 필요함
+
+그래서 유저가 서버가 아닌 cloudflare에 이미지를 업로드하게 함.
+1. 유저가 이미지를 업로드하면 
+2. CF가 안전한 URL을 생성해주고 
+3. 우린 그걸 유저에게 주고 
+4. 그 이미지는 CF로 바로 업로드됨.
+
+cloudflareImage는 public(원본),avatar(작은사이즈)로 제공됨
+
+cloudflareImage가 AWS S3보다 나은 점
+1. 이미지의 품질 조절 가능, 이미지 크기조절 가능(S3는 URL만 제공함)
+2. 매우 저렴함
+
+one-time upload URL은 유저가 업로드할 때 사용
+
+
+//액션 업로드
+import fs from "fs/promises";
+  if (data.photo instanceof File) {
+    const photoData = await data.photo.arrayBuffer();
+    await fs.appendFile(`./public/${data.photo.name}`, Buffer.from(photoData));
+    data.photo = `/${data.photo.name}`;
+  }
