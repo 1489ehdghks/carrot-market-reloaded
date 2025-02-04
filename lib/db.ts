@@ -11,6 +11,7 @@ async function test(){
             user: true
         }
     })
+    return token;
 }
 
 

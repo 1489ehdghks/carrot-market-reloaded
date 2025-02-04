@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono, Inter } from "next/font/google";
+import { Inter } from "next/font/google";
 import "./globals.css";
 
 const inter = Inter({
@@ -9,8 +9,8 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: {
-    template: "%s | Delicious Karrot",
-    default: "Delicious Karrot",
+    template: "%s | LUMI",
+    default: "LUMI",
   },
   description: "Sell and buy all the things!",
 };
@@ -20,9 +20,11 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+
   return (
     <html lang="en">
       <body className={` bg-neutral-900 text-white max-w-screen-sm mx-auto`}>
+
         {children}
       </body>
     </html>

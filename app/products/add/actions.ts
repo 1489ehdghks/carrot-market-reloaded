@@ -4,8 +4,9 @@ import db from "@/lib/db";
 import getSession from "@/lib/session";
 import { redirect } from "next/navigation";
 import { productSchema } from "./schema";
+import { revalidateTag } from "next/cache";
 
-export async function uploadProduct(_: any, formData: FormData) {
+export async function uploadProduct(formData: FormData) {
   const data = {
     photo: formData.get("photo"),
     title: formData.get("title"),
@@ -34,10 +35,11 @@ export async function uploadProduct(_: any, formData: FormData) {
           id: true,
         },
       });
-      redirect(`/products/${product.id}`);
-      //redirect("/products")
+      revalidateTag('products');
+      redirect(`/home`);
     }
   }
+  
 }
 
 export async function getUploadUrl() {

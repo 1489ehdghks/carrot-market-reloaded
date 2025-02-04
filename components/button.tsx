@@ -4,6 +4,8 @@ import { useFormStatus } from "react-dom";
 
 interface FormBtnProps{
     text: string;
+    variant?: string;
+    onClick?: () => void;
 }
 
 export default function FormBtn({text}: FormBtnProps){ 

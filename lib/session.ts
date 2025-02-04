@@ -7,7 +7,7 @@ interface SessionContent{
 
 export default async function getSession(){
     return getIronSession<SessionContent>(await cookies(),{
-        cookieName: "delicious-karrot",
+        cookieName: "LUMI",
         password: process.env.COOKIE_PASSWORD!,
     })
 }

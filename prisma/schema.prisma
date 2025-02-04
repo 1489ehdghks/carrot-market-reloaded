@@ -17,8 +17,14 @@ model User {
   avatar String? @default("https://lh3.googleusercontent.com/-XdUIqdMkCWA/AAAAAAAAAAI/AAAAAAAAAAA/4252rscbv5M/photo.jpg")
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
-  SMSToken SMSToken[]
-  Product Product[]
+
+  tokens SMSToken[]
+  Products Product[]
+  posts Post[]
+  likes Like[]
+  comments Comment[]
+  chatRooms ChatRoom[]
+  messages Message[]
 }
 
 model SMSToken {
@@ -41,4 +47,65 @@ model Product {
   updated_at DateTime @updatedAt
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId     Int
+}
+
+model Post{
+  id Int @id @default(autoincrement())
+  title String
+  description String?
+  views Int @default(0)
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId Int
+  comments Comment[]
+  likes Like[]
+}
+
+model Comment{
+  id Int @id @default(autoincrement())
+  content String
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId Int
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  postId Int
+}
+
+
+model Like{
+    created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId Int
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  postId Int
+
+  @@id(name:"id",[userId,postId])
+}
+
+
+model ChatRoom{
+  id String @id @default(cuid())
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+  users User[]
+  messages Message[]
+}
+
+model Message{
+  id Int @id @default(autoincrement())
+  content String
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  room ChatRoom @relation(fields: [chatRoomId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  chatRoomId String
+  userId Int
 }
