@@ -1,10 +1,8 @@
 "use server"
-import { PASSWORD_MIN_LENGTH, PASSWORD_REGEX } from "@/lib/constants";
+import { PASSWORD_MIN_LENGTH } from "@/lib/constants";
 import db from "@/lib/db";
 import {z} from "zod";
 import bcrypt from "bcrypt";
-import { getIronSession } from "iron-session";
-import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import getSession from "@/lib/session";
 

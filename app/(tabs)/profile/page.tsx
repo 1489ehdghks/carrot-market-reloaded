@@ -5,7 +5,6 @@ import { Suspense } from "react";
 import { UserCircleIcon } from "@heroicons/react/24/solid";
 import { CameraIcon } from "@heroicons/react/24/solid";
 import Image from "next/image";
-import ProfileLoading from "./loading";
 
 
 async function getUser(){
@@ -32,24 +31,25 @@ async function Username(){
 export default async function ProfilePage(){
     const user = await getUser();
     const logout = async () => {
-        "use server";
+        'use server';
         const session = await getSession();
         await session.destroy();
-        redirect("/");
+        redirect('/');
     }
     return (
-    <div className="p-5 max-w-xl mx-auto">
-        <Suspense fallback={<div>"Hello!"</div>}>
+    <div className='p-5 max-w-xl mx-auto'>
+        <Suspense fallback={<div>'Hello!'</div>}>
             <Username />
         </Suspense>
         
     {/* 프로필 헤더 */}
-    <div className="flex flex-col items-center gap-5 mb-8">
-                <div className="relative">
+    <div className='flex flex-col items-center gap-5 mb-8'>
+        <div className='relative'>
+
                     {user.avatar ? (
                         <Image
                             src={user.avatar}
-                            alt="Profile"
+                            alt="Profile"   
                             width={120}
                             height={120}
                             className="rounded-full"

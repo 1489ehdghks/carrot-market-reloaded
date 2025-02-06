@@ -15,13 +15,18 @@ async function getRoom(id:string){
             users: {
                 select: {id: true}
             }
+
         },
     });
-    if(room){
+    if (room) {
         const session = await getSession();
-        const canSee = Boolean(room.users.find(user => user.id === session?.id!))
-        if(!canSee){
-            return null;
+        if (!session) {
+            return null;  // 세션이 없으면 접근 불가
+        }
+        
+        const canSee = room.users.some(user => user.id === session.id);
+        if (!canSee) {
+            return null;  // 권한이 없으면 접근 불가
         }
     }
     return room;

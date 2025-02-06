@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import CloseButton from "./closeButton";
 import EditButton from "./editButton";
 import Image from "next/image";
-import { formatToTimeAgo, formatToWon } from "@/lib/utils";
+import { formatToWon } from "@/lib/utils";
 import { getProduct } from "@/app/products/[id]/page";
 
 export default async function Modal({ params }: { params: { id: string } }) {

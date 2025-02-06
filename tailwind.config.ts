@@ -6,7 +6,21 @@ export default {
     "./components/**/*.{js,ts,jsx,tsx,mdx}",
     "./app/**/*.{js,ts,jsx,tsx,mdx}",
   ],
-  theme: {},
+  theme: {
+    extend:{
+      fontFamily:{
+        oswald:'var(--font-oswald)',
+        roboto:'var(--font-roboto)',
+        notoSansKR:'var(--font-notoSansKR)'
+      },
+      margin:{
+        tomato:'120px'
+      },
+      borderRadius:{
+        sexyName:'11.11px'
+      },
+    }
+  },
   plugins: [
     require('@tailwindcss/forms'),
     require('daisyui'),
