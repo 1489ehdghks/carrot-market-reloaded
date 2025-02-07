@@ -6,7 +6,20 @@ import bcrypt from "bcrypt";
 import { redirect } from "next/navigation";
 import getSession from "@/lib/session";
 
-const checkUsername = (username: string) => username.includes("a");
+type FormState = {
+    fieldErrors?: {
+        username?: string[];
+        email?: string[];
+        password?: string[];
+        passwordConfirm?: string[];
+    };
+    formErrors?: string[];
+} | null;
+
+
+
+
+
 const checkPassword = ({password,passwordConfirm}: {password: string, passwordConfirm: string}) => password === passwordConfirm;
 const checkUniqueEmail = async (email: string) => {
     const user = await db.user.findUnique({where:{email},select:{id:true}});
@@ -45,36 +58,44 @@ const formSchema = z.object({
 })
 
 
+export async function CreateAccount(prevState: FormState, formData: FormData) {
+    try {
+        const data = {
+            username: formData.get("username"),
+            email: formData.get("email"),
+            password: formData.get("password"),
+            passwordConfirm: formData.get("passwordConfirm"),
+        };
+        
+        const result = await formSchema.safeParseAsync(data);
+        if (!result.success) {
+            return result.error.flatten();
+        }
 
-export async function CreateAccount(prevState: any, formData: FormData){
-    const data = {
-        username: formData.get("username"),
-        email: formData.get("email"),
-        password: formData.get("password"),
-        passwordConfirm: formData.get("passwordConfirm"),
-    };
-    const result = await formSchema.safeParseAsync(data);
-    if (!result.success){
-        return(result.error.flatten());
-    }else{
         const hashedPassword = await bcrypt.hash(result.data.password, 12);
         const user = await db.user.create({
-            data:{
+            data: {
                 username: result.data.username,
                 email: result.data.email,
                 password: hashedPassword,
             },
-            select:{
+            select: {
                 id: true,
             }
         });
+
         const session = await getSession();
         if (!user.id) {
             throw new Error("User creation failed");
         }
-        session.id=user.id;
+        session.id = user.id;
         await session.save();
         redirect("/profile");
 
+    } catch (error) {
+        if (error instanceof Error) {
+            throw error;
+        }
+        throw new Error("알 수 없는 오류가 발생했습니다.");
     }
 }

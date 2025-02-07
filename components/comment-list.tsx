@@ -8,7 +8,7 @@ interface Comment {
   updated_at?: Date;
   user: {
     username: string;
-    avatar: string;
+    avatar: string | null;
   };
 }
 
@@ -17,7 +17,6 @@ interface CommentListProps {
 }
 
 export default function CommentList({ comments }: CommentListProps) {
-  console.log(comments);
   return (
     <div className="mt-8 space-y-6">
       <h3 className="text-lg font-semibold">댓글 {comments.length}개</h3>

@@ -19,7 +19,7 @@ export async function uploadProduct(formData: FormData) {
   } else {
     const session = await getSession();
     if (session.id) {
-      const product = await db.product.create({
+      await db.product.create({
         data: {
           title: result.data.title,
           description: result.data.description,

@@ -1,10 +1,10 @@
 import { db } from "@/lib/db";
 import getSession from "@/lib/session";
-import { EyeIcon, HandThumbUpIcon } from "@heroicons/react/24/solid";
+import { EyeIcon } from "@heroicons/react/24/solid";
 import { notFound } from "next/navigation";
 import { formatToTimeAgo } from "@/lib/utils";
 import Image from "next/image";
-import { unstable_cache as nextCache, revalidateTag } from "next/cache";
+import { unstable_cache as nextCache } from "next/cache";
 import LikeButton from "@/components/like-button";
 import CommentForm from "@/components/comment-form";
 import CommentList from "@/components/comment-list";
@@ -36,7 +36,7 @@ async function getPost(id: number) {
       },
     });
     return post;
-  } catch (e) {
+  } catch {
     return null;
   }
 }

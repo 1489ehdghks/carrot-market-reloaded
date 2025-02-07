@@ -18,11 +18,45 @@ export default function Home() {
         </div>
 
         <form action={dispatch} className="flex flex-col gap-3">
-          <Input name="username" type="text" placeholder="Username" required={true} errors={state?.fieldErrors.username} minLength={3} maxLength={10}/>
-          <Input name="email" type="email" placeholder="Email" required={true} errors={state?.fieldErrors.email}/>
-          <Input name="password" type="password" placeholder="Password" required={true} errors={state?.fieldErrors.password} minLength={PASSWORD_MIN_LENGTH} maxLength={12}/>
-          <Input name="passwordConfirm" type="password" placeholder="Confirm Password" required={true} errors={state?.fieldErrors.passwordConfirm} minLength={PASSWORD_MIN_LENGTH} maxLength={12}/>
-            <Button text="Create account"/>
+          <Input 
+            name="username" 
+            type="text" 
+            placeholder="Username" 
+            required={true} 
+            errors={state?.fieldErrors.username} 
+            minLength={3} 
+            maxLength={10}
+            autoComplete="username"
+          />
+          <Input 
+            name="email" 
+            type="email" 
+            placeholder="Email" 
+            required={true} 
+            errors={state?.fieldErrors.email}
+            autoComplete="email"
+          />
+          <Input 
+            name="password" 
+            type="password" 
+            placeholder="Password" 
+            required={true} 
+            errors={state?.fieldErrors.password} 
+            minLength={PASSWORD_MIN_LENGTH} 
+            maxLength={12}
+            autoComplete="new-password"
+          />
+          <Input 
+            name="passwordConfirm" 
+            type="password" 
+            placeholder="Confirm Password" 
+            required={true} 
+            errors={state?.fieldErrors.passwordConfirm} 
+            minLength={PASSWORD_MIN_LENGTH} 
+            maxLength={12}
+            autoComplete="new-password"
+          />
+          <Button text="Create account"/>
         </form>
         <SocialLogin/>
 

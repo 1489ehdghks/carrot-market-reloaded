@@ -7,6 +7,9 @@ import getSession from "@/lib/session";
 
 export async function likePost(id:number){
     const session = await getSession();
+    if (!session?.id) {
+      throw new Error("로그인이 필요합니다.");
+    }
     try {
       await db.like.create({
         data: {
@@ -15,13 +18,18 @@ export async function likePost(id:number){
         },
       });
       revalidateTag(`like-status-${id}`); 
-    } catch (e) {}
+    } catch{
+      throw new Error("좋아요 추가에 실패했습니다. 다시 시도해 주세요.");
+    }
   };
 
 
 export async function dislikePost(id:number){
+  const session = await getSession();
+  if (!session?.id) {
+    throw new Error("로그인이 필요합니다.");
+  }
     try {
-      const session = await getSession();
       await db.like.delete({
         where: {
           id: {
@@ -31,7 +39,9 @@ export async function dislikePost(id:number){
         },
       });
       revalidateTag(`like-status-${id}`);
-    } catch (e) {}
+    } catch{
+      throw new Error("좋아요 취소에 실패했습니다. 다시 시도해 주세요.");
+    }
   };
 
 

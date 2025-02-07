@@ -19,11 +19,25 @@ export default function Login() {
         </div>
 
         <form action={dispatch} className="flex flex-col gap-3">
-
-          <FormInput name="email" type="email" placeholder="Email" required errors={state?.fieldErrors.email}/>
-          <FormInput name="password" type="password" placeholder="Password" required errors={state?.fieldErrors.password} minLength={PASSWORD_MIN_LENGTH}/>
-          <FormBtn text="Log in"/>
-        </form>
+  <FormInput 
+    name="email" 
+    type="email" 
+    placeholder="Email" 
+    required 
+    errors={state?.fieldErrors.email}
+    autoComplete="email"
+  />
+  <FormInput 
+    name="password" 
+    type="password" 
+    placeholder="Password" 
+    required 
+    errors={state?.fieldErrors.password} 
+    minLength={PASSWORD_MIN_LENGTH}
+    autoComplete="current-password"
+  />
+  <FormBtn text="Log in"/>
+</form>
         <SocialLogin/>
 
     </div>

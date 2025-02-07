@@ -23,8 +23,8 @@ export async function getProduct(id: string) {
 
 export async function updateProduct(id: string, formData: FormData) {
   const session = await getSession();
-  if (!session.id) return;
-
+  if (!session.id) return { error: "권한이 없습니다." };
+  
   const data = {
     photo: formData.get("photo"),
     title: formData.get("title"),
@@ -36,8 +36,7 @@ export async function updateProduct(id: string, formData: FormData) {
   if (!result.success) {
     return result.error.flatten();
   }
-
-  const product = await db.product.update({
+  await db.product.update({
     where: {
       id: +id,
       userId: session.id,
@@ -51,5 +50,5 @@ export async function updateProduct(id: string, formData: FormData) {
   });
 
   revalidateTag('products');
-  redirect('/home');
+  return { success: true };
 }

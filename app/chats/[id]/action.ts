@@ -7,16 +7,18 @@ import { redirect } from "next/navigation";
 
 export async function saveMessage(content:string, chatRoomId:string){
     const session = await getSession();
-    await db.message.create({
+    const message = await db.message.create({
         data:{
             content,
             chatRoomId,
             userId: session.id!,
+
         },
         select:{
             id: true,  
         }
     })
+    return message; 
 }
 
 export async function updateMessage(messageId: number, newContent: string) {
@@ -53,21 +55,18 @@ export async function updateMessage(messageId: number, newContent: string) {
         });
 
         return { success: true };
-    } catch (error) {
-        console.error("메시지 수정 실패:", error);
+    } catch {
         return { error: "메시지 수정에 실패했습니다." };
     }
 }
 
 export async function deleteMessage(messageId: number): Promise<void> {
     const session = await getSession();
-    console.log("세션 확인:", session);
-
     const message = await db.message.findUnique({
         where: { id: messageId },
         select: { userId: true, chatRoomId: true }
     });
-    console.log("메시지 확인:", message);
+
 
     // 권한 체크 로직 수정
     if (!session?.id || !message || message.userId !== session.id) {

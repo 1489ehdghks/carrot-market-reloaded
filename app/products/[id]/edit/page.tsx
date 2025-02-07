@@ -85,14 +85,16 @@ export default function EditProduct({ params }: EditProductProps) {
       formData.append("price", data.price+"");
       formData.append("description", data.description);
       
-      const errors = await updateProduct(id, formData);
-      if(errors) {
+      const result = await updateProduct(id, formData);
+      if ('error' in result) {
         reset(data);
         return;
       }
       
-      router.push('/home');
-    } catch (error) {
+      router.replace('/home');
+
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "오류가 발생했습니다. 다시 시도해주세요.");
       reset(data);
     }
   });

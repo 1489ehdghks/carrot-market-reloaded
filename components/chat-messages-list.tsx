@@ -20,6 +20,25 @@ interface ChatMessageListProps{
     avatar: string;
 }
 
+interface MessagePayload {
+  id: number;
+  content: string;
+  created_at: Date;
+  userId: number;
+  user: {
+      username: string;
+      avatar: string | null;
+  };
+}
+
+interface UpdatePayload {
+  id: number;
+  content: string;
+}
+
+interface DeletePayload {
+  id: number;
+}
 
 
 
@@ -29,6 +48,7 @@ export default function ChatMessagesList({initialMessages, userId, chatRoomId, u
     const [editingId, setEditingId] = useState<number | null>(null);
     const [editContent, setEditContent] = useState("");
     const channel = useRef<RealtimeChannel | null>(null);
+    const inputRef = useRef<HTMLInputElement>(null); 
     const startEdit = (messageId: number, content: string) => {
         setEditingId(messageId);
         setEditContent(content);
@@ -46,35 +66,36 @@ export default function ChatMessagesList({initialMessages, userId, chatRoomId, u
         setMessage(value);
     }
     const onSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setMessages(prevMsgs => [...prevMsgs,{
-            id: Date.now(),
+      e.preventDefault();
+      try {
+          const savedMessage = await saveMessage(message, chatRoomId);
+          
+          const newMessage = {
+            id: savedMessage.id,
             content: message,
             created_at: new Date(),
             userId,
             user: {
-                username: "String",
-                avatar: "xxx",
+                username,
+                avatar,
             }
-        }])
+        };
+        
+        setMessages(prevMsgs => [...prevMsgs, newMessage]);
+        
+        // Supabase 브로드캐스트
         channel.current?.send({
             type: "broadcast",
             event: "message",
-            payload: {
-                id: Date.now(),
-                content: message,
-                created_at: new Date(),
-                userId,
-                user: {
-                    username,
-                    avatar,
-                }
-            }
+            payload: newMessage
         });
-        await saveMessage(message, chatRoomId);
+        
         setMessage("");
-
-    }
+        inputRef.current?.focus(); 
+      } catch {
+          alert("메시지 전송에 실패했습니다.");
+      }
+  }
 
 
     useEffect(() => {
@@ -84,35 +105,36 @@ export default function ChatMessagesList({initialMessages, userId, chatRoomId, u
         }
         channel.current = client.channel(`room-${chatRoomId}`);
         // 새 메시지 수신
-        const messageHandler = ({ payload }: any) => {
+        const messageHandler = ({ payload }: { payload: MessagePayload }) => {
           setMessages(prevMsgs => {
               // 중복 메시지 방지
               const exists = prevMsgs.some(msg => msg.id === payload.id);
+
               if (exists) return prevMsgs;
               return [...prevMsgs, payload];
           });
       };
 
       // 메시지 수정
-      const updateHandler = ({ payload }: any) => {
-          setMessages(prevMsgs => {
-              const msgIndex = prevMsgs.findIndex(msg => msg.id === payload.id);
-              if (msgIndex === -1) return prevMsgs;
-              
-              const newMsgs = [...prevMsgs];
-              newMsgs[msgIndex] = {
+      const updateHandler = ({ payload }: { payload: UpdatePayload }) => {
+        setMessages(prevMsgs => {
+            const msgIndex = prevMsgs.findIndex(msg => msg.id === payload.id);
+            if (msgIndex === -1) return prevMsgs;
+            
+            const newMsgs = [...prevMsgs];
+            newMsgs[msgIndex] = {
                 ...newMsgs[msgIndex], 
                 content: payload.content,
-              };
-              return newMsgs;
-          });
-      };
+            };
+            return newMsgs;
+        });
+    };
+    
 
       // 메시지 삭제
-      const deleteHandler = ({ payload }: any) => {
-          setMessages(prevMsgs => prevMsgs.filter(msg => msg.id !== payload.id));
-      };
-
+      const deleteHandler = ({ payload }: { payload: DeletePayload }) => {
+        setMessages(prevMsgs => prevMsgs.filter(msg => msg.id !== payload.id));
+    };
 
       if (channel.current) {
       channel.current
@@ -179,12 +201,31 @@ export default function ChatMessagesList({initialMessages, userId, chatRoomId, u
               )}
               {editingId === message.id ? (
                 <form 
-                  action={async (formData: FormData) => {
-                    await updateMessage(message.id, editContent);
-                    cancelEdit();
-                  }}
-                  className="flex gap-2"
-                >
+    onSubmit={async (e) => {
+        e.preventDefault();
+        try {
+            const result = await updateMessage(message.id, editContent);
+            if (result.error) {
+                alert(result.error);
+                return;
+            }
+
+            channel.current?.send({
+                type: "broadcast",
+                event: "message_update",
+                payload: {
+                    id: message.id,
+                    content: editContent
+                }
+            });
+
+            cancelEdit();
+        } catch {
+            alert("메시지 수정에 실패했습니다.");
+        }
+    }}
+    className="flex gap-2"
+>
                   <input
                     type="text"
                     value={editContent}
@@ -220,6 +261,7 @@ export default function ChatMessagesList({initialMessages, userId, chatRoomId, u
         ))}
             <form className="flex relative gap-2" onSubmit={onSubmit}>
                 <input 
+                ref={inputRef} 
                 required
                 onChange={onChange}
                 type="text"

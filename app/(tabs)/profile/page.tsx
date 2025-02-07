@@ -38,7 +38,7 @@ export default async function ProfilePage(){
     }
     return (
     <div className='p-5 max-w-xl mx-auto'>
-        <Suspense fallback={<div>'Hello!'</div>}>
+        <Suspense fallback={<div>Hello!</div>}>
             <Username />
         </Suspense>
         

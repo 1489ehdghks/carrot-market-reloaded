@@ -1,6 +1,6 @@
 "use client";
 
-import { useOptimistic, useTransition } from "react";
+import { useTransition } from "react";
 import { createComment } from "@/app/life/[id]/actions";
 
 interface CommentFormProps {

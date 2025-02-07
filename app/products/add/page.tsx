@@ -65,7 +65,7 @@ export default function AddProduct() {
         if (!errors) {
           router.push('/home');
       } 
-    }catch (error) {
+    }catch {
       reset(data);
       }
 
