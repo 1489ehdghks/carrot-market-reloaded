@@ -2,7 +2,6 @@
 
 import db from "@/lib/db";
 import { revalidateTag } from "next/cache";
-import { redirect } from "next/navigation";
 import { productSchema } from "../../add/schema";
 import getSession from "@/lib/session";
 
@@ -24,7 +23,7 @@ export async function getProduct(id: string) {
 export async function updateProduct(id: string, formData: FormData) {
   const session = await getSession();
   if (!session.id) return { error: "권한이 없습니다." };
-  
+
   const data = {
     photo: formData.get("photo"),
     title: formData.get("title"),
