@@ -89,7 +89,7 @@ export async function smsLogin(prevState: ActionState,formData: FormData){
             //get userId of token
             const token = await db.sMSToken.findUnique({
                 where:{token:result.data.toString()},
-                select:{id:true,userId:true}
+                select:{id:true,userId:true}    
             })
 
                 const session = await getSession();
