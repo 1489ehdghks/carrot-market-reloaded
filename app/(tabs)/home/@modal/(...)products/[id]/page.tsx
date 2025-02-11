@@ -4,7 +4,7 @@ import CloseButton from "./closeButton";
 import EditButton from "./editButton";
 import Image from "next/image";
 import { formatToWon } from "@/lib/utils";
-import { getProduct } from "@/app/products/[id]/page";
+import { getProduct } from "@/app/products/[id]/actions";
 import { Metadata } from 'next';
 
 interface PageProps {

@@ -5,7 +5,8 @@ import Image from "next/image";
 import { UserIcon } from "@heroicons/react/24/solid";
 import { formatToWon } from "@/lib/utils";
 import { redirect } from "next/navigation";
-import { unstable_cache as nextCache,revalidateTag } from "next/cache";
+import { revalidateTag } from "next/cache";
+import { getCachedProduct } from "./actions";
 
 async function getIsOwner(userId:number){
   const session = await getSession();
@@ -14,25 +15,6 @@ async function getIsOwner(userId:number){
   }
   return false;
 }
-
-export async function getProduct(id: number) {
-  const product = await db.product.findUnique({
-    where: { id },
-    include: {
-      user: {
-        select: {
-          username: true,
-          avatar: true,
-        },
-      },
-    },
-  });
-  return product;
-}
-
-const getCachedProduct = nextCache(getProduct, ["product-detail"], {
-  tags: ["product", "list"],
-});
 
 const deleteProduct = async (formData:FormData) => {
   "use server";
