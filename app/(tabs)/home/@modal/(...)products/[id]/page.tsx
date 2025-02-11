@@ -5,9 +5,17 @@ import EditButton from "./editButton";
 import Image from "next/image";
 import { formatToWon } from "@/lib/utils";
 import { getProduct } from "@/app/products/[id]/page";
+import { Metadata } from 'next';
 
-export default async function Modal({ params }: { params: { id: string } }) {
-    const { id } = await params;
+interface PageProps {
+  params: {
+    id: string;
+  };
+  searchParams: { [key: string]: string | string[] | undefined };
+}
+
+export default async function Page({ params, searchParams }: PageProps) {
+    const { id } = params;
     if (id === 'add') {
         return null;
     }
@@ -104,4 +112,10 @@ export default async function Modal({ params }: { params: { id: string } }) {
         </div>
     </dialog>
     );
+}
+
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  return {
+    title: `Product ${params.id}`,
+  };
 }
