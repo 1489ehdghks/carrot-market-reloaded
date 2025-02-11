@@ -34,22 +34,6 @@ const getCachedProduct = nextCache(getProduct, ["product-detail"], {
   tags: ["product", "list"],
 });
 
-async function getProductTitle(id: number) {
-  const product = await db.product.findUnique({
-    where: {
-      id,
-    },
-    select: {
-      title: true,
-    },
-  });
-  return product;
-}
-
-// const getCachedProductTitle = nextCache(getProductTitle, ["product-title"], {
-//   tags: ["product-title", "xxxx"],
-// });
-
 const deleteProduct = async (formData:FormData) => {
   "use server";
   const id = formData.get("id");
