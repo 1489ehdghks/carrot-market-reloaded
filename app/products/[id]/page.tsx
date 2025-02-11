@@ -46,9 +46,9 @@ async function getProductTitle(id: number) {
   return product;
 }
 
-const getCachedProductTitle = nextCache(getProductTitle, ["product-title"], {
-  tags: ["product-title", "xxxx"],
-});
+// const getCachedProductTitle = nextCache(getProductTitle, ["product-title"], {
+//   tags: ["product-title", "xxxx"],
+// });
 
 const deleteProduct = async (formData:FormData) => {
   "use server";
