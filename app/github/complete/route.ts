@@ -70,7 +70,7 @@ export async function GET(request: NextRequest) {
 
           const user = await db.user.findUnique({
             where: {
-              github_id: id + "",
+              github_id: id.toString(),
             },
             select: {
               id: true,
@@ -85,7 +85,7 @@ export async function GET(request: NextRequest) {
           const newUser = await db.user.create({
             data: {
               username: await generateUniqueUsername(login),
-              github_id: id + "",
+              github_id: id.toString(),
               avatar: avatar_url,
             },
             select: {

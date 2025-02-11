@@ -1,13 +1,24 @@
 import { redirect } from "next/navigation";
+import { NextResponse } from "next/server";
 
-export function GET(){
-    const BaseUrl = "https://github.com/login/oauth/authorize";
-    const params = {
+export async function GET() {
+    const baseUrl = "https://github.com/login/oauth/authorize";
+    const config = {
         client_id: process.env.GITHUB_CLIENT_ID!,
         scope: "read:user,user:email",
         allow_signup: "true",
-    }
-    const formattedParams = new URLSearchParams(params).toString();
-    const finalUrl = `${BaseUrl}?${formattedParams}`;
-    return redirect(finalUrl);
+        ...(process.env.GITHUB_CALLBACK_URL && {
+            redirect_uri: process.env.GITHUB_CALLBACK_URL
+        })
+    };
+    
+    const params = new URLSearchParams(config).toString();
+    const finalUrl = `${baseUrl}?${params}`;
+    
+    return NextResponse.redirect(finalUrl, {
+        status: 302,
+        headers: {
+            'Cache-Control': 'no-store',
+        },
+    });
 }
