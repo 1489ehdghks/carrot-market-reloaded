@@ -8,13 +8,13 @@ import { getProduct } from "@/app/products/[id]/page";
 import { Metadata } from 'next';
 
 interface PageProps {
-  params: {
+  params: Promise<{
     id: string;
-  };
+  }>;
 }
 
 export default async function Page({ params }: PageProps) {
-    const { id } = params;
+    const { id } = await params;
     if (id === 'add') {
         return null;
     }
@@ -114,7 +114,8 @@ export default async function Page({ params }: PageProps) {
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const { id } = await params;
   return {
-    title: `Product ${params.id}`,
+    title: `Product ${id}`,
   };
 }
