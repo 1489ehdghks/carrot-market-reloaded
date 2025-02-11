@@ -1,14 +1,14 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  logging:{
-    fetches:{
-      fullUrl:true,
+  logging: {
+    fetches: {
+      fullUrl: true,
     }
   },
   // 추후에 다시 설정할 것
   typescript: {
-    ignoreBuildErrors: true,
+    ignoreBuildErrors: false,
   },
   images: {
     remotePatterns: [
