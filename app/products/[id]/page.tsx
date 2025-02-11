@@ -123,14 +123,4 @@ export async function generateMetadata({ params }: PageProps) {
   };
 }
 
-export const dynamicParams = true;
-export async function generateStaticParams() {
-  const products = await db.product.findMany({
-    select: {
-      id: true,
-    },
-  });
-  return products.map((product) => ({
-    id: product.id.toString(),
-  }));
-}
+export const dynamic = 'force-dynamic';

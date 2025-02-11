@@ -6,6 +6,7 @@ import { UserCircleIcon } from "@heroicons/react/24/solid";
 import { CameraIcon } from "@heroicons/react/24/solid";
 import Image from "next/image";
 
+export const dynamic = 'force-dynamic';
 
 async function getUser(){
     const session = await getSession();

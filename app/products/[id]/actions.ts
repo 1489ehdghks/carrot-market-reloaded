@@ -18,4 +18,5 @@ export async function getProduct(id: number) {
 
 export const getCachedProduct = nextCache(getProduct, ["product-detail"], {
   tags: ["product", "list"],
+  revalidate: 60,
 }); 
