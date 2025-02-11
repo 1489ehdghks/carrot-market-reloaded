@@ -4,6 +4,11 @@ import getSession from "@/lib/session";
 import { Prisma } from "@prisma/client";
 import { notFound } from "next/navigation";
 
+interface PageProps {
+  params: Promise<{
+    id: string;
+  }>;
+}
 
 async function getRoom(id:string){
     const room = await db.chatRoom.findUnique({
@@ -70,20 +75,19 @@ async function getUserProfile() {
   
 export type InitialChatMessage = Prisma.PromiseReturnType<typeof getMessages>;
 
-
-export default async function ChatRoom({params}:{params: { id: string }}) {
+export default async function ChatRoom({ params }: PageProps) {
     const { id } = await params;
     const room = await getRoom(id);
-    if(!room){
+    if (!room) {
         return notFound();
     }
-    const initialMessages = await getMessages(id);
+
+    const messages = await getMessages(id);
     const session = await getSession();
     const user = await getUserProfile();
     if(!user){
         return notFound();
     }
-
 
     return (
         <ChatMessagesList
@@ -91,7 +95,7 @@ export default async function ChatRoom({params}:{params: { id: string }}) {
             userId={session.id!} 
             username={user.username}
             avatar={user.avatar!}
-            initialMessages={initialMessages} />
+            initialMessages={messages} />
     )
     
 }
