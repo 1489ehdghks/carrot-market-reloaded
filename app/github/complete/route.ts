@@ -106,10 +106,16 @@ export async function GET(request: NextRequest) {
     } catch (error) {
         console.error("GitHub auth error:", error);
         return new Response(
-            JSON.stringify({ error: "인증 처리 중 오류가 발생했습니다." }), 
+            JSON.stringify({ 
+                error: "인증 처리 중 오류가 발생했습니다.",
+                details: process.env.NODE_ENV === "development" ? error : undefined 
+            }), 
             { 
                 status: 500,
-                headers: { "Content-Type": "application/json" }
+                headers: { 
+                    "Content-Type": "application/json",
+                    "Access-Control-Allow-Origin": process.env.NEXT_PUBLIC_APP_URL || 'https://carrot-market-reloaded.vercel.app'
+                }
             }
         );
     }
