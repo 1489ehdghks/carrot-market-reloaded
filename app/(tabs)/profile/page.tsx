@@ -21,12 +21,32 @@ async function getUser(){
     notFound();
 }
 
-async function Username(){
-    await new Promise(resolve => setTimeout(resolve, 1000));
+async function ProfileHeader() {
     const user = await getUser();
-    return <h1>Welcome! {user?.username}!</h1>
+    return (
+        <div className='flex flex-col items-center gap-5 mb-8'>
+            <div className='relative'>
+                {user.avatar ? (
+                    <Image
+                        src={user.avatar}
+                        alt="profile"   
+                        width={120}
+                        height={120}
+                        className="rounded-full"
+                    />
+                ) : (
+                    <UserCircleIcon className="w-32 h-32 text-neutral-600" />
+                )}
+                <button className="absolute bottom-0 right-0 bg-orange-500 p-2 rounded-full text-white hover:bg-orange-600 transition-colors">
+                    <CameraIcon className="w-5 h-5" />
+                </button>
+            </div>
+            <Suspense fallback={<div className="animate-pulse bg-neutral-700 h-8 w-32 rounded-lg" />}>
+                <h1>Welcome! {user.username}!</h1>
+            </Suspense>
+        </div>
+    );
 }
-
 
 export default async function ProfilePage(){
     try {
@@ -48,35 +68,9 @@ export default async function ProfilePage(){
         }
 
         return (
-        <div className='p-5 max-w-xl mx-auto'>
-            <Suspense fallback={<div>Hello!</div>}>
-                <Username />
-            </Suspense>
-            
-        {/* 프로필 헤더 */}
-        <div className='flex flex-col items-center gap-5 mb-8'>
-            <div className='relative'>
-
-                        {user.avatar ? (
-                            <Image
-                                src={user.avatar}
-                                alt="Profile"   
-                                width={120}
-                                height={120}
-                                className="rounded-full"
-                            />
-                        ) : (
-                            <UserCircleIcon className="w-32 h-32 text-neutral-600" />
-                        )}
-                        <button className="absolute bottom-0 right-0 bg-orange-500 p-2 rounded-full text-white hover:bg-orange-600 transition-colors">
-                            <CameraIcon className="w-5 h-5" />
-                        </button>
-                    </div>
-                    <Suspense fallback={<div className="animate-pulse bg-neutral-700 h-8 w-32 rounded-lg" />}>
-                        <Username />
-                    </Suspense>
-                </div>
-
+            <div className='p-5 max-w-xl mx-auto'>
+                <ProfileHeader />
+                
                 {/* 프로필 정보 */}
                 <div className="space-y-6">
                     {/* 통계 */}
