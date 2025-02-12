@@ -1,23 +1,15 @@
 import { PrismaClient } from "@prisma/client";
 
-type PrismaClientSingleton = ReturnType<typeof prismaClientSingleton>;
-
 const globalForPrisma = global as unknown as {
-  prisma: PrismaClientSingleton | undefined;
+  prisma: PrismaClient | undefined;
 };
 
 const prismaClientSingleton = () => {
   return new PrismaClient({
-    log: process.env.NODE_ENV === "development" ? ["query"] : [],
-  }).$extends({
-    query: {
-      async $allOperations({ args, query }) {
-        try {
-          return await query(args);
-        } catch (error) {
-          await globalForPrisma.prisma?.$disconnect();
-          throw error;
-        }
+    log: process.env.NODE_ENV === "development" ? ["query", "error", "warn"] : ["error"],
+    datasources: {
+      db: {
+        url: process.env.DATABASE_URL
       },
     },
   });
@@ -28,4 +20,8 @@ const prisma = globalForPrisma.prisma ?? prismaClientSingleton();
 if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
 
 export const db = prisma;
-export default db;
+
+// Disconnect on error
+process.on('beforeExit', async () => {
+  await prisma.$disconnect();
+});

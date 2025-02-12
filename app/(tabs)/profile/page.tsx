@@ -1,5 +1,5 @@
 import getSession from "@/lib/session";
-import db from "@/lib/db";
+import {db} from "@/lib/db";
 import { redirect,notFound } from "next/navigation";
 import { Suspense } from "react";
 import { UserCircleIcon } from "@heroicons/react/24/solid";
