@@ -8,6 +8,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
 import { productSchema, ProductType } from "./schema";
+import FormBtn from "@/components/button";
 
 export default function AddProduct() {
     const router = useRouter();
@@ -75,7 +76,7 @@ export default function AddProduct() {
     }
 
     return (
-    <div>
+    <div className="pb-20">
        <form action={onValid} className="p-5 flex flex-col gap-5">
         
        <label
@@ -130,19 +131,14 @@ export default function AddProduct() {
           {...register("description")}
           errors={[errors.description?.message ?? ""]}
         />
-        <Button text="작성 완료" />
       </form>
-      <div className="mt-2">
-          <form onSubmit={(e) => {
-            e.preventDefault();
-            onCancel();
-          }}>
-            <Button 
-              text="취소" 
-              variant="destructive"
-            />
-          </form>
+
+      <div className="fixed bottom-0 left-0 right-0 max-w-screen-sm mx-auto p-5 bg-neutral-900 border-t border-neutral-800">
+        <div className="flex gap-3">
+          <FormBtn text="작성 완료" onClick={onValid} />
+          <FormBtn text="취소" variant="secondary" onClick={onCancel} />
         </div>
+      </div>
     </div>
   );
 }

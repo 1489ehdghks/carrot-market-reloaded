@@ -16,6 +16,22 @@
 
 @layer components {
   .primary-btn {
-    @apply w-full bg-orange-500 text-white  font-medium  rounded-md text-center hover:bg-orange-400 transition-colors;
+    @apply bg-[#2c3e50] text-white relative overflow-hidden;
+    background: linear-gradient(110deg, #2f5984 0%,#307b71 50%,#22579c 100%);
+  }
+  
+  .primary-btn::after {
+    @apply absolute inset-0 w-full transform transition-transform duration-500 ease-out;
+    content: '';
+    background: linear-gradient(to right, #282478 0%, #2f5984 100% );
+    transform: translateX(-100%);
+  }
+  
+  .primary-btn:hover::after {
+    transform: translateX(0);
+  }
+  
+  .primary-btn span {
+    @apply relative z-10 transition-colors duration-300;
   }
 }

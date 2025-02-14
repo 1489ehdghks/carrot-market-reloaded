@@ -32,7 +32,7 @@ export async function dislikePost(id:number){
     try {
       await db.like.delete({
         where: {
-          id: {
+          userId_postId: {
             postId: id,
             userId: session.id!,
           },
@@ -87,3 +87,19 @@ export async function createComment(postId: number, content: string) {
       tags: [`post-${postId}-comments`]
     })(postId); 
   }
+
+export async function getLikeStatus(postId: number) {
+  const session = await getSession();
+  if (!session?.id) return false;
+
+  const like = await db.like.findUnique({
+    where: {
+      userId_postId: {
+        userId: session.id,
+        postId
+      }
+    }
+  });
+
+  return !!like;
+}

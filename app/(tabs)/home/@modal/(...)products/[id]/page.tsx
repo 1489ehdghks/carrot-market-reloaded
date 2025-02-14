@@ -4,7 +4,7 @@ import CloseButton from "./closeButton";
 import EditButton from "./editButton";
 import Image from "next/image";
 import { formatToWon } from "@/lib/utils";
-import { getProduct } from "@/app/products/[id]/actions";
+import { selectProductWithUser } from "@/app/products/actions";
 import { Metadata } from 'next';
 
 interface PageProps {
@@ -24,7 +24,7 @@ export default async function Page({ params }: PageProps) {
         return notFound();
     }
 
-    const product = await getProduct(productId);
+    const product = await selectProductWithUser(productId);
     if (!product) {
         return notFound();
     }

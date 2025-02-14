@@ -11,39 +11,75 @@ export default function TabBar(){
     const pathname = usePathname();
 
     return (
-
-        <div className="fixed bottom-0 left-1/2 -translate-x-1/2 max-w-screen-sm w-full grid grid-cols-5 border-t border-neutral-600 bg-neutral-800 px-5 py-3">
-            <Link href="/home" className="flex flex-col items-center space-y-1 text-white">
-                {pathname === "/home" ? 
-                <HomeIconSolid className="w-7 h-7"/> : 
-                <HomeIconOutline className="w-7 h-7"/>}
-                <span >홈</span>
-            </Link>
-            <Link href="/life" className="flex flex-col items-center space-y-1 text-white">
-            {pathname === "/life" ? 
-                (<NewspaperIconSolid className="w-7 h-7"/>) : 
-                (<NewspaperIconOutline className="w-7 h-7"/>)}
-                <span>동네생활</span>
-            </Link>
-            <Link href="/chats" className="flex flex-col items-center space-y-1 text-white">
-            {pathname === "/chats" ? 
-                <ChatBubbleLeftRightIconSolid className="w-7 h-7"/> : 
-                <ChatBubbleLeftRightIconOutline className="w-7 h-7"/>}
-                <span>채팅</span>
-            </Link>
-            <Link href="/live" className="flex flex-col items-center space-y-1 text-white">
-            {pathname === "/live" ? 
-                <ShoppingBagIconSolid className="w-7 h-7"/> : 
-                <ShoppingBagIconOutline className="w-7 h-7"/>}
-                <span>쇼핑</span>
-            </Link>
-            <Link href="/profile" className="flex flex-col items-center space-y-1 text-white">
-            {pathname === "/profile" ? 
-                <UserIconSolid className="w-7 h-7"/> : 
-                <UserIconOutline className="w-7 h-7"/>}
-                    <span>프로필</span>
-                </Link>
+        <nav className="fixed bottom-0 left-0 w-full bg-gradient-to-t from-neutral-900 to-neutral-800 border-t border-neutral-700/50 backdrop-blur-lg">
+            <div className="max-w-screen-sm mx-auto px-8 py-3">
+                <div className="grid grid-cols-5 gap-1">
+                    <Link 
+                        href="/home" 
+                        className={`flex flex-col items-center space-y-1 transition-colors duration-300
+                            ${pathname === "/home" 
+                                ? "text-blue-400" 
+                                : "text-neutral-400 hover:text-neutral-200"}`}
+                    >
+                        {pathname === "/home" 
+                            ? <HomeIconSolid className="w-6 h-6"/> 
+                            : <HomeIconOutline className="w-6 h-6"/>}
+                        <span className="text-xs font-medium">홈</span>
+                    </Link>
+                    
+                    <Link 
+                        href="/life" 
+                        className={`flex flex-col items-center space-y-1 transition-colors duration-300
+                            ${pathname === "/life" 
+                                ? "text-blue-400" 
+                                : "text-neutral-400 hover:text-neutral-200"}`}
+                    >
+                        {pathname === "/life" 
+                            ? <NewspaperIconSolid className="w-6 h-6"/> 
+                            : <NewspaperIconOutline className="w-6 h-6"/>}
+                        <span className="text-xs font-medium">요청</span>
+                    </Link>
+                    
+                    <Link 
+                        href="/chats" 
+                        className={`flex flex-col items-center space-y-1 transition-colors duration-300
+                            ${pathname === "/chats" 
+                                ? "text-blue-400" 
+                                : "text-neutral-400 hover:text-neutral-200"}`}
+                    >
+                        {pathname === "/chats" 
+                            ? <ChatBubbleLeftRightIconSolid className="w-6 h-6"/> 
+                            : <ChatBubbleLeftRightIconOutline className="w-6 h-6"/>}
+                        <span className="text-xs font-medium">채팅</span>
+                    </Link>
+                    <Link 
+                        href="/live" 
+                        className={`flex flex-col items-center space-y-1 transition-colors duration-300
+                            ${pathname === "/live" 
+                                ? "text-blue-400" 
+                                : "text-neutral-400 hover:text-neutral-200"}`}
+                    >
+                        {pathname === "/live" 
+                            ? <ShoppingBagIconSolid className="w-6 h-6"/> 
+                            : <ShoppingBagIconOutline className="w-6 h-6"/>}
+                        <span className="text-xs font-medium">라이브러리</span>
+                    </Link>
+                    
+                    
+                    <Link 
+                        href="/profile" 
+                        className={`flex flex-col items-center space-y-1 transition-colors duration-300
+                            ${pathname === "/profile" 
+                                ? "text-blue-400" 
+                                : "text-neutral-400 hover:text-neutral-200"}`}
+                    >
+                        {pathname === "/profile" 
+                            ? <UserIconSolid className="w-6 h-6"/> 
+                            : <UserIconOutline className="w-6 h-6"/>}
+                        <span className="text-xs font-medium">프로필</span>
+                    </Link>
+                </div>
             </div>
-
+        </nav>
     )
 }

@@ -1,22 +1,15 @@
-import db from "@/lib/db";
+"use server"
+
+import { selectProductWithUser } from "../actions";
 import { unstable_cache as nextCache } from "next/cache";
 
-export async function getProduct(id: number) {
-  const product = await db.product.findUnique({
-    where: { id },
-    include: {
-      user: {
-        select: {
-          username: true,
-          avatar: true,
-        },
-      },
-    },
-  });
-  return product;
-}
-
-export const getCachedProduct = nextCache(getProduct, ["product-detail"], {
-  tags: ["product", "list"],
-  revalidate: 60,
-}); 
+export async function getCachedProduct(id: number) {
+  return nextCache(
+    selectProductWithUser,
+    [`product-${id}`],
+    {
+      tags: ["products", `product-${id}`],
+      revalidate: 60, // 1시간
+    }
+  )(id);
+} 

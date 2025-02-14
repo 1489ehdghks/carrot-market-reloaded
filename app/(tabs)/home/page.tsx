@@ -1,5 +1,5 @@
 import ProductList from "@/components/product-list";
-import db from "@/lib/db";
+import {db} from "@/lib/db";
 import { PlusIcon } from "@heroicons/react/24/solid";
 import { Prisma } from "@prisma/client";
 import { unstable_cache as nextCache } from "next/cache";

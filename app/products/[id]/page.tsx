@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import db from "@/lib/db";
+import {db} from "@/lib/db";
 import getSession from "@/lib/session";
 import Image from "next/image";
 import { UserIcon } from "@heroicons/react/24/solid";
@@ -44,7 +44,7 @@ export default async function ProductDetail({ params }: PageProps) {
     return notFound();
   }
 
-  const isOwner = await getIsOwner(product.userId);
+  const isOwner = product.user ? await getIsOwner(product.user.id) : false;
   const revalidate = async () => {
     "use server";
     revalidateTag("products");
