@@ -1,8 +1,8 @@
 "use client"
 import { useState,useEffect, useRef } from "react";
 import ListProduct from "./list-product"
-import { InitialProducts } from "@/app/(tabs)/home/page";
-import { getMoreProducts } from "@/app/(tabs)/home/actions";
+import { InitialProducts } from "@/app/(tabs)/products/page";
+import { getMoreProducts } from "@/app/(tabs)/products/actions";
 
 
 interface ProductListProps{
