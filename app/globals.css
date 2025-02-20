@@ -40,6 +40,36 @@
       transparent 100%
     );
   }
+
+  .primary-btn {
+    @apply relative overflow-hidden text-white;
+    background: linear-gradient(110deg, #FFB4B4 0%, #FF9B9B 100%);
+    background-size: 200% 100%;
+  }
+  
+  .primary-btn::before {
+    @apply absolute inset-0 opacity-0 transition-opacity duration-300;
+    content: '';
+    background: radial-gradient(circle at center, 
+      rgba(255, 180, 180, 0.5) 0%,
+      rgba(255, 155, 155, 0.2) 50%,
+      transparent 100%
+    );
+  }
+  
+  .primary-btn:hover {
+    @apply transform scale-[1.02] transition-all duration-300;
+    background-position: 100% 0;
+  }
+  
+  .primary-btn:hover::before {
+    @apply opacity-100;
+    animation: glow 2s ease-in-out infinite;
+  }
+  
+  .primary-btn:active {
+    @apply transform scale-[0.98];
+  }
 }
 
 @keyframes float {
@@ -53,10 +83,10 @@
 
 @keyframes glow {
   0%, 100% {
-    opacity: 0.5;
+    opacity: 0.3;
   }
   50% {
-    opacity: 0.8;
+    opacity: 0.6;
   }
 }
 

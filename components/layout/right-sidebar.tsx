@@ -11,7 +11,7 @@ import {
   XMarkIcon,
   Bars3Icon 
 } from "@heroicons/react/24/outline"
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { Tooltip } from "@/components/ui/tooltip"
@@ -47,8 +47,14 @@ interface AIChat {
   lastChat?: string
 }
 
-export default function RightSidebar() {
-  const [isVisible, setIsVisible] = useState(true)
+
+interface RightSidebarProps {
+  isVisible: boolean;
+  onClose: () => void;
+  onToggle: () => void;
+}
+
+export default function RightSidebar({ isVisible, onClose, onToggle }: RightSidebarProps) {
   const [showAllCreations, setShowAllCreations] = useState(false)
   const [showAllPrompts, setShowAllPrompts] = useState(false)
   const [showAllPopular, setShowAllPopular] = useState(false)
@@ -92,76 +98,33 @@ export default function RightSidebar() {
     setTimeout(() => setCopiedId(null), 2000)
   }
 
-  // 키보드 단축키 처리
-  useEffect(() => {
-    const handleKeyPress = (e: KeyboardEvent) => {
-      // Alt + 2로 사이드바 토글
-      if (e.altKey && e.key === '2') {
-        setIsVisible(prev => !prev);
-      }
-      // Escape 키로 사이드바 닫기
-      if (e.key === 'Escape' && isVisible) {
-        setIsVisible(false);
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyPress);
-    return () => window.removeEventListener('keydown', handleKeyPress);
-  }, [isVisible]);
-
-  // 마우스가 오른쪽 가장자리에 닿으면 사이드바 표시
-  const handleMouseEnter = () => {
-    if (!isVisible) {
-      setIsVisible(true);
-    }
-  };
-
   return (
     <>
-      {/* 마우스 감지 영역 */}
-      {!isVisible && (
-        <div 
-          className="fixed right-0 top-0 w-2 h-full z-40 hidden lg:block"
-          onMouseEnter={handleMouseEnter}
-        />
-      )}
-
-      {/* 토글 버튼 */}
+      {/* 토글 버튼 - 사이드바가 숨겨졌을 때 */}
       {!isVisible && (
         <button
-          onClick={() => setIsVisible(true)}
-          className="fixed right-4 top-4 z-50 p-2 rounded-lg bg-neutral-800/70 hover:bg-neutral-700/70 transition-colors lg:block hidden group"
-          title="사이드바 열기 (Alt + 2)"
+          onClick={onToggle}
+          className="fixed right-4 top-4 z-50 p-2 rounded-lg bg-neutral-800/70 hover:bg-neutral-700/70 transition-colors"
         >
           <Bars3Icon className="w-5 h-5 text-neutral-300" />
-          <span className="absolute right-full mr-2 px-2 py-1 bg-neutral-800 rounded text-xs text-neutral-300 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-            Alt + 2
-          </span>
         </button>
       )}
 
       {/* 사이드바 */}
       <aside 
-        className={`fixed right-0 top-0 h-full bg-neutral-900/95 backdrop-blur-sm z-50 border-l border-neutral-800/50
-          transition-all duration-300 ease-in-out hidden lg:block
-          ${isVisible 
-            ? 'w-80 opacity-100 translate-x-0' 
-            : 'w-0 opacity-0 translate-x-full'
-          }
+        className={`fixed right-0 top-0 h-full bg-neutral-900/95 backdrop-blur-sm z-50 border-l border-neutral-800/50 overflow-y-auto
+          transition-all duration-300 ease-in-out
+          ${isVisible ? 'w-80 opacity-100 translate-x-0' : 'w-0 opacity-0 translate-x-full'}
         `}
       >
-        <div className={`flex flex-col h-full p-4 ${!isVisible ? 'invisible' : ''}`}>
+        <div className="p-4 space-y-5">
           {/* 닫기 버튼 */}
-          <div className="flex justify-end mb-6">
+          <div className="flex justify-end">
             <button
-              onClick={() => setIsVisible(false)}
-              className="p-2 rounded-lg hover:bg-neutral-800/70 transition-colors group relative"
-              title="사이드바 닫기 (Esc)"
+              onClick={onClose}
+              className="p-2 rounded-lg hover:bg-neutral-800/70 transition-colors"
             >
               <XMarkIcon className="w-5 h-5 text-neutral-300" />
-              <span className="absolute left-full ml-2 px-2 py-1 bg-neutral-800 rounded text-xs text-neutral-300 opacity-0 group-hover:opacity-100 transition-opacity">
-                Esc
-              </span>
             </button>
           </div>
 
@@ -341,13 +304,6 @@ export default function RightSidebar() {
                 </Link>
               ))}
             </div>
-          </div>
-
-          {/* 키보드 단축키 안내 */}
-          <div className="mt-4 px-3 py-2 bg-neutral-800/30 rounded-lg">
-            <p className="text-xs text-neutral-500">
-              단축키: <span className="text-neutral-400">Alt + 2</span> (토글) / <span className="text-neutral-400">Esc</span> (닫기)
-            </p>
           </div>
         </div>
       </aside>

@@ -1,3 +1,4 @@
+// 1. 기본 설정
 generator client {
   provider = "prisma-client-js"
 }
@@ -8,25 +9,102 @@ datasource db {
   relationMode = "prisma"
 }
 
+// 2. 사용자 관련
 model User {
-  id Int @id @default(autoincrement())
-  username String @unique
-  email String? @unique
-  password String?
-  phone String? @unique
-  github_id Int? @unique
-  avatar String? @default("https://lh3.googleusercontent.com/-XdUIqdMkCWA/AAAAAAAAAAI/AAAAAAAAAAA/4252rscbv5M/photo.jpg")
-  created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
+  id          Int      @id @default(autoincrement())
+  username    String   @unique
+  email       String?  @unique
+  password    String?
+  phone       String?  @unique
+  github_id   Int?     @unique
+  avatar      String?  @default("https://lh3.googleusercontent.com/-XdUIqdMkCWA/AAAAAAAAAAI/AAAAAAAAAAA/4252rscbv5M/photo.jpg")
+  
+  // 프로필 정보
+  name        String?
+  bio         String?  @db.Text
+  role        String   @default("user")  // "user" | "creator" | "admin"
+  isVerified  Boolean  @default(false)
+  isAdult     Boolean  @default(false)
+  
+  // 크리에이터 정보
+  rating         Float    @default(0)
+  ratingCount    Int      @default(0)
+  availableModels String? // JSON: 사용 가능한 AI 모델들
+  
+  // 랭크/업적 시스템
+  level         Int      @default(1)
+  exp           Int      @default(0)
+  rank          String   @default("bronze") // bronze, silver, gold, platinum, diamond
+  badges        UserBadge[]
+  achievements  UserAchievement[]
+  certifications UserCertification[]
+  
+  // 메타데이터
+  lastLogin   DateTime?
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+  lastActive  DateTime?
+  totalCreated Int     @default(0) // 총 생성 작품 수
+  totalLikes   Int     @default(0) // 받은 총 좋아요 수
+  totalViews   Int     @default(0) // 받은 총 조회수
 
-  tokens SMSToken[]
-  Products Product[]
-  posts Post[]
-  likes Like[]
-  comments Comment[]
-  chatRooms ChatRoom[]
-  messages Message[]
+  // 인증 관련
+  tokens      SMSToken[]
+  
+
+  // AI 작품 관련
+  aiImages    AIImage[]
+  aiVideos    AIVideo[]
+  imageComments ImageComment[]
+  videoComments VideoComment[]
+  imageLikes    ImageLike[]
+  videoLikes    VideoLike[]
+
+  // 의뢰 시스템
+  requests      Request[]            // 작성한 의뢰
+  requestComments RequestComment[]
+  requestProposals RequestProposal[] // 작업자로서의 제안
+
+  // 커뮤니티
+  posts       Post[]
+  comments    Comment[]
+  likes       Like[]
+
+  // 채팅
+  chatRooms   ChatRoom[]
+  messages    Message[]
+
+  // 결제/시스템
+  transactions Transaction[]
+  notifications Notification[]
+  donations    Donation[]
+
+  // 경험치 관련
+  dailyExpLimit Int     @default(100)  // 일일 경험치 획득 한도
+  todayExp     Int      @default(0)    // 오늘 획득한 경험치
+  lastExpReset DateTime @default(now()) // 마지막 일일 경험치 리셋 시간
+  expActivities ExpActivity[]          // 경험치 획득 활동 기록
+  
+  // 랭크 관련
+  rankEvaluations    RankEvaluation[]     // 받은 랭크 평가들
+  rankEvaluationVotes RankEvaluationVote[] // 평가자로서의 투표들
+  evaluationCount    Int     @default(0)   // 평가자로서 참여한 횟수
+  evaluationRating   Float   @default(0)   // 평가자로서의 신뢰도
+
+  failedLoginAttempts Int @default(0)
+  lockedUntil DateTime?
+
+  points      Int      @default(0)    // 포인트 잔액
+  pointHistory PointTransaction[]
+
+  blockedUsers User[] @relation("UserBlocks")
+  blockedBy    User[] @relation("UserBlocks")
+  reports      Report[] @relation("UserReports")
+
+  @@index([role])
+  @@index([created_at])
 }
+
 
 model SMSToken {
   id         Int      @id @default(autoincrement())
@@ -38,21 +116,252 @@ model SMSToken {
   @@index([userId])
 }
 
-model Product {
-  id          Int    @id @default(autoincrement())
+// 3. AI 작품 관련
+model AIImage {
+  id          Int      @id @default(autoincrement())
   title       String
-  price       Float
-  photo       String
-  description String
+  description String   @db.Text
+  price       Float?   // 판매 가능한 경우
+  category    String   // "2D" | "2.5D" | "realistic" | "background" | "other"
+  tags        String?  // JSON 형식으로 저장된 태그들
+  
+  // 이미지 파일 관련
+  fileUrl     String   // Cloudflare Image ID 또는 URL
+  thumbnailUrl String  // Cloudflare 자동 생성 썸네일 URL
+  width       Int      
+  height      Int
+  format      String   // "png" | "jpg" | "webp"
+  
+  // AI 생성 정보
+  prompt        String   @db.Text
+  negativePrompt String? @db.Text
+  model         String   // "stable-diffusion" | "midjourney" | "dall-e" 등
+  settings      String?  // JSON 형식으로 저장된 생성 설정
+  
+  // 메타데이터
+  views       Int      @default(0)
+  downloads   Int      @default(0)
+  isPublic    Boolean  @default(true)
+  isFeatured  Boolean  @default(false)
+  isAdult     Boolean  @default(false)
+  
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
 
-  created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId     Int
+  // 관계
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId      Int
+  comments    ImageComment[]
+  likes       ImageLike[]
+
+  status      String   @default("active") // "active" | "deleted" | "reported" | "banned"
+  reportCount Int      @default(0)
+  reports     Report[] @relation("ImageReports")
+
+  searchText  String?  @db.Text // title + description + tags 통합 검색용
+
   @@index([userId])
+  @@index([category])
+  @@index([created_at])
+  @@fulltext([searchText])
 }
 
-model Post{
+model ImageComment {
+  id          Int      @id @default(autoincrement())
+  content     String
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId      Int
+  image       AIImage  @relation(fields: [imageId], references: [id], onDelete: Cascade)
+  imageId     Int
+
+  @@index([userId])
+  @@index([imageId])
+}
+
+model ImageLike {
+  created_at  DateTime @default(now())
+  
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId      Int
+  image       AIImage  @relation(fields: [imageId], references: [id], onDelete: Cascade)
+  imageId     Int
+
+  @@id([userId, imageId])
+  @@index([imageId])
+}
+
+model AIVideo {
+  id          Int      @id @default(autoincrement())
+  title       String
+  description String   @db.Text
+  fps         Int
+  price       Float?
+  category    String   // "2d" | "realistic" | "vfx" | "other"
+  tags        String?
+  
+  // 비디오 파일 관련
+  fileUrl       String   // Cloudflare Stream ID 또는 URL
+  thumbnailUrl  String   // Cloudflare 자동 생성 썸네일
+  previewUrl    String?  // 미리보기 (짧은 버전/저화질)
+  width         Int
+  height        Int
+  duration      Float    // 길이(초)
+  format        String   // "mp4" | "webm"
+  
+  // AI 생성 정보
+  prompt        String   @db.Text
+  model         String   // "runway" | "d-id" | "heygen" 등
+  settings      String?
+  
+  // 메타데이터
+  views       Int      @default(0)
+  downloads   Int      @default(0)
+  isPublic    Boolean  @default(true)
+  isFeatured  Boolean  @default(false)
+  isAdult     Boolean  @default(false)
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  // 관계
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId      Int
+  comments    VideoComment[]
+  likes       VideoLike[]
+
+  status      String   @default("active")
+  reportCount Int      @default(0)
+  reports     Report[] @relation("VideoReports")
+
+  searchText  String?  @db.Text
+
+  @@index([userId])
+  @@index([category])
+  @@index([created_at])
+  @@fulltext([searchText])
+}
+
+model VideoComment {
+  id          Int      @id @default(autoincrement())
+  content     String
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId      Int
+  video       AIVideo  @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  videoId     Int
+
+  @@index([userId])
+  @@index([videoId])
+}
+
+model VideoLike {
+  created_at  DateTime @default(now())
+  
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId      Int
+  video       AIVideo  @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  videoId     Int
+
+  @@id([userId, videoId])
+  @@index([videoId])
+}
+
+// 4. 의뢰 시스템
+model Request {
+  id          Int      @id @default(autoincrement())
+  title       String
+  description String   @db.Text
+  budget      Float?   // 의뢰 예산
+  deadline    DateTime? // 마감일
+  status      String   @default("pending") // "pending" | "in_progress" | "completed" | "cancelled"
+  type        String   // "image" | "video"
+  category    String   // "2D" | "2.5D" | "realistic" | "background" | "other"
+  
+  // 의뢰 상세
+  reference   String?  // 참고 이미지/영상 URL
+  requirements String? @db.Text  // 상세 요구사항
+  
+  // AI 생성 관련 선호도
+  preferredModel String? // 선호하는 AI 모델
+  styleReference String? // 선호하는 스타일 참고
+  
+  // 메타데이터
+  views       Int      @default(0)
+  isPublic    Boolean  @default(true)
+  isPriority  Boolean  @default(false)
+  
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  // 관계
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId      Int
+  comments    RequestComment[]
+  proposals   RequestProposal[] // 새로 추가: 작업자들의 제안
+
+  @@index([userId])
+  @@index([type])
+  @@index([category])
+  @@index([status])
+  @@index([created_at])
+}
+
+model RequestComment {
+  id          Int      @id @default(autoincrement())
+  content     String
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId      Int
+  request     Request  @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  requestId   Int
+
+  @@index([userId])
+  @@index([requestId])
+}
+
+model RequestProposal {
+  id          Int      @id @default(autoincrement())
+  content     String   @db.Text
+  price       Float
+  duration    Int      // 예상 작업 기간(일)
+  status      String   @default("pending") // "pending" | "accepted" | "rejected"
+  
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId      Int
+  request     Request  @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  requestId   Int
+
+  @@index([userId])
+  @@index([requestId])
+}
+
+// 5. AI 모델 관리
+model AIModel {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique // "stable-diffusion", "midjourney" 등
+  type        String   // "image" | "video"
+  version     String   // 모델 버전
+  description String   @db.Text
+  features    String?  // JSON 형식으로 저장된 기능 목록
+  pricing     Float?   // 사용 비용
+  isActive    Boolean  @default(true)
+  
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+  @@index([type])
+}
+
+// 6. 커뮤니티 기능
+model Post {
   id Int @id @default(autoincrement())
   title String
   description String?
@@ -65,9 +374,10 @@ model Post{
   comments Comment[]
   likes Like[]
   @@index([userId])
+  @@index([created_at])
 }
 
-model Comment{
+model Comment {
   id Int @id @default(autoincrement())
   content String
 
@@ -81,10 +391,9 @@ model Comment{
   @@index([postId])
 }
 
-
 model Like {
-  created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId Int
@@ -95,16 +404,17 @@ model Like {
   @@index([postId])
 }
 
-
-model ChatRoom{
+// 7. 채팅 시스템
+model ChatRoom {
   id String @id @default(cuid())
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
   users User[]
   messages Message[]
+  @@index([created_at])
 }
 
-model Message{
+model Message {
   id Int @id @default(autoincrement())
   content String
 
@@ -117,4 +427,299 @@ model Message{
   userId Int
   @@index([userId])
   @@index([chatRoomId])
+  @@index([created_at])
+}
+
+// 8. 결제 및 태그
+model Transaction {
+  id          Int      @id @default(autoincrement())
+  amount      Float
+  type        String   // "payment" | "refund" | "withdrawal"
+  status      String   // "pending" | "completed" | "failed"
+  paymentMethod String? // "card" | "bank" | "point" | "crypto"
+  currency     String   @default("KRW")
+  receiptUrl   String?  // 영수증 URL
+  metadata     String?  // JSON: 추가 결제 정보
+  
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+  
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId      Int
+  requestId   Int?     // 의뢰 관련 결제
+  productId   Int?     // 작품 구매
+
+  @@index([userId])
+  @@index([status])
+  @@index([requestId])
+  @@index([productId])
+  @@index([created_at])
+}
+
+model Tag {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique
+  type        String   // "style" | "subject" | "technique" | "other"
+  count       Int      @default(0)
+  
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+}
+
+// 9. 시스템
+model Notification {
+  id          Int      @id @default(autoincrement())
+  type        String   // "request" | "proposal" | "comment" | "system"
+  title       String
+  content     String
+  isRead      Boolean  @default(false)
+  
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+  
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId      Int
+  
+  @@index([userId])
+  @@index([created_at])
+}
+
+// 업적 시스템
+model Achievement {
+  id          Int      @id @default(autoincrement())
+  title       String
+  description String
+  category    String   // "sales" | "creation" | "community" | "special"
+  points      Int      // 획득 포인트
+  requirements String  // JSON: 달성 조건
+  icon        String   // 아이콘 URL
+  
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+  
+  users       UserAchievement[]
+  @@index([category])
+  @@index([created_at])
+}
+
+model UserAchievement {
+  id            Int         @id @default(autoincrement())
+  achievedAt    DateTime    @default(now())
+  
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId        Int
+  achievement   Achievement @relation(fields: [achievementId], references: [id], onDelete: Cascade)
+  achievementId Int
+
+  @@unique([userId, achievementId])
+  @@index([userId])
+  @@index([achievementId])
+}
+
+// 뱃지 시스템
+model Badge {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique
+  description String
+  icon        String   // 뱃지 아이콘 URL
+  type        String   // "donor" | "volunteer" | "event" | "special" | "rank"
+  tier        String?  // "bronze" | "silver" | "gold" | null
+  rarity      String   // "common" | "rare" | "epic" | "legendary"
+  
+  // 획득 조건
+  requirements String? // JSON: 획득 조건 (예: {"donationAmount": 50000})
+  
+  // 이벤트 관련
+  eventId     Int?     // 이벤트 뱃지인 경우
+  startDate   DateTime? // 획득 가능 시작일
+  endDate     DateTime? // 획득 가능 종료일
+  isLimited   Boolean  @default(false) // 한정 뱃지 여부
+  
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+  
+  users       UserBadge[]
+  @@index([type])
+  @@index([rarity])
+  @@index([eventId])
+  @@index([created_at])
+}
+
+model UserBadge {
+  id        Int      @id @default(autoincrement())
+  isActive  Boolean  @default(true)  // 대표 뱃지로 설정
+  earnedAt  DateTime @default(now())
+  
+  // 획득 경로
+  source     String   // "donation" | "event" | "achievement" | "rank"
+  sourceId   Int?     // 관련된 이벤트/도네이션/업적 ID
+  
+  // 후원자 뱃지 관련
+  donationAmount Float?  // 후원 금액 (후원자 뱃지의 경우)
+  
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    Int
+  badge     Badge    @relation(fields: [badgeId], references: [id], onDelete: Cascade)
+  badgeId   Int
+
+  @@unique([userId, badgeId])
+  @@index([userId])
+  @@index([source])
+  @@index([badgeId])
+}
+
+// 후원 시스템 (뱃지 연동)
+model Donation {
+  id          Int      @id @default(autoincrement())
+  amount      Float
+  message     String?
+  isAnonymous Boolean  @default(false)
+  
+  created_at  DateTime @default(now())
+  
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId      Int
+  
+  // 후원 뱃지 자동 지급을 위한 필드
+  badgeAwarded Boolean @default(false)
+  
+  @@index([userId])
+  @@index([amount])
+  @@index([created_at])
+}
+
+// 자격 인증 시스템
+model Certification {
+  id          Int      @id @default(autoincrement())
+  title       String
+  description String
+  level       Int      // 난이도/등급
+  type        String   // "technical" | "creative" | "professional"
+  
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+  
+  users       UserCertification[]
+  @@index([type])
+  @@index([level])
+  @@index([created_at])
+}
+
+model UserCertification {
+  id            Int           @id @default(autoincrement())
+  status        String       @default("pending") // "pending" | "passed" | "failed"
+  score         Int?
+  certifiedAt   DateTime?
+  expiresAt     DateTime?
+  
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId        Int
+  certification Certification @relation(fields: [certificationId], references: [id], onDelete: Cascade)
+  certificationId Int
+
+  @@unique([userId, certificationId])
+  @@index([userId])
+  @@index([certificationId])
+}
+
+// 경험치 시스템
+model ExpActivity {
+  id          Int      @id @default(autoincrement())
+  type        String   // "attendance" | "comment" | "post" | "like_received"
+  expAmount   Int      // 획득한 경험치 양
+  
+  created_at  DateTime @default(now())
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId      Int
+
+  @@index([userId])
+  @@index([created_at])
+}
+
+// 랭크 평가 시스템
+model RankEvaluation {
+  id          Int      @id @default(autoincrement())
+  targetRank  String   // "silver" | "gold" | "platinum" | "diamond"
+  status      String   @default("pending")  // "pending" | "approved" | "rejected"
+  
+  // 평가 대상 작품
+  contentType String   // "image" | "video"
+  contentId   Int      // AIImage 또는 AIVideo의 id
+  
+  // 평가 정보
+  totalScore  Float    @default(0)
+  evaluationCount Int  @default(0)
+  requiredScore Float  // 승급에 필요한 점수
+  
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+  
+  // 관계
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId      Int
+  evaluations RankEvaluationVote[]
+
+  @@index([userId])
+  @@index([status])
+  @@index([targetRank])
+  @@index([contentType, contentId])
+  @@index([created_at])
+}
+
+// 랭크 평가 투표
+model RankEvaluationVote {
+  id          Int      @id @default(autoincrement())
+  score       Float    // 평가 점수 (1-10)
+  comment     String?  // 평가 코멘트
+  
+  created_at  DateTime @default(now())
+  
+  // 관계
+  evaluation  RankEvaluation @relation(fields: [evaluationId], references: [id], onDelete: Cascade)
+  evaluationId Int
+  evaluator   User     @relation(fields: [evaluatorId], references: [id], onDelete: Cascade)
+  evaluatorId Int
+
+  @@unique([evaluationId, evaluatorId])  // 중복 투표 방지
+  @@index([evaluationId])
+  @@index([evaluatorId])
+}
+
+model Report {
+  id          Int      @id @default(autoincrement())
+  type        String   // "image" | "video" | "user" | "comment"
+  reason      String
+  description String?  @db.Text
+  status      String   @default("pending")
+  targetId    Int
+  targetType  String
+  
+  reporter    User     @relation("UserReports", fields: [reporterId], references: [id], onDelete: Cascade)
+  image       AIImage? @relation("ImageReports", fields: [targetId], references: [id], map: "Report_image_fkey")
+  video       AIVideo? @relation("VideoReports", fields: [targetId], references: [id], map: "Report_video_fkey")
+  reporterId  Int
+  
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+  
+  @@index([targetType, targetId])
+  @@index([status])
+  @@index([reporterId])
+  @@index([targetId])
+}
+
+model PointTransaction {
+  id          Int      @id @default(autoincrement())
+  amount      Int
+  type        String   // "earn" | "spend" | "refund"
+  description String
+  balance     Int      // 거래 후 잔액
+  
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId      Int
+  
+  created_at  DateTime @default(now())
+  
+  @@index([userId])
+  @@index([created_at])
 }

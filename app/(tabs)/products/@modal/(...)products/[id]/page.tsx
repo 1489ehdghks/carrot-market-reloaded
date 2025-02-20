@@ -3,7 +3,6 @@ import { notFound } from "next/navigation";
 import CloseButton from "./closeButton";
 import EditButton from "./editButton";
 import Image from "next/image";
-import { formatToWon } from "@/lib/utils";
 import { selectProductWithUser } from "@/app/products/actions";
 import { Metadata } from 'next';
 
@@ -24,7 +23,7 @@ export default async function Page({ params }: PageProps) {
         return notFound();
     }
 
-    const product = await selectProductWithUser(productId);
+    const product = await selectProductWithUser(productId, "image");
     if (!product) {
         return notFound();
     }
@@ -45,9 +44,9 @@ export default async function Page({ params }: PageProps) {
                         <div className="grid md:grid-cols-2 gap-0">
                             {/* 이미지 섹션 */}
                             <div className="relative aspect-square bg-neutral-100 dark:bg-neutral-800">
-                                {product.photo ? (
+                                {product.thumbnailUrl ? (
                                     <Image 
-                                        src={`${product.photo}/public`}
+                                        src={`${product.thumbnailUrl}/public`}
                                         alt={product.title}
                                         fill
                                         priority
@@ -71,10 +70,6 @@ export default async function Page({ params }: PageProps) {
                                         {product.description}
                                     </p>
                                     <div className="space-y-4">
-                                        <div className="flex items-center gap-2">
-                                            <span className="text-sm font-medium text-neutral-500">가격:</span>
-                                            <span className="font-semibold">₩{formatToWon(product.price)}</span>
-                                        </div>
                                         <div className="flex items-center gap-2">
                                             {product.user.avatar ? (
                                                 <Image 
