@@ -2,7 +2,6 @@
 import { useState } from "react";
 import Input from "@/components/input";
 import { PhotoIcon } from "@heroicons/react/24/outline";
-import Button from "@/components/button";
 import { uploadProduct, getUploadUrl } from "./actions";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";

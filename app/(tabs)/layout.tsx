@@ -11,7 +11,7 @@ export default function Layout({
       <div className="pb-20 md:pb-0">
         {children}
       </div>
-      <TabBar />
+      {/* <TabBar /> */}
     </MainLayout>
   );
 }

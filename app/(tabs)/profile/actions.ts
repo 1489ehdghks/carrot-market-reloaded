@@ -2,6 +2,7 @@
 
 import { db } from "@/lib/db";
 import getSession from "@/lib/session";
+import { redirect } from "next/navigation";
 
 export async function getUser() {
   const session = await getSession();
@@ -29,6 +30,7 @@ export async function getUser() {
 export async function logout() {
   const session = await getSession();
   await session.destroy();
+  redirect("/");
 }
 
 export async function getUploadUrl() {

@@ -2,10 +2,16 @@ import { useInView } from "react-intersection-observer";
 import { useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { formatToWon } from "@/lib/utils";
+
+interface Product {
+  id: number;
+  title: string;
+  thumbnailUrl: string;
+  isPublic: boolean;
+}
 
 interface ProductGridProps {
-  products: any[];
+  products: Product[];
   onLoadMore: () => void;
   hasMore: boolean;
   isLoading: boolean;
@@ -25,9 +31,12 @@ export default function ProductGrid({
     }
   }, [inView, hasMore, isLoading, onLoadMore]);
 
+  // 공개된 이미지만 필터링
+  const publicProducts = products.filter(product => product.isPublic);
+
   return (
     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-      {products.map((product) => (
+      {publicProducts.map((product) => (
         <Link
           key={product.id}
           href={`/products/${product.id}`}
@@ -40,12 +49,6 @@ export default function ProductGrid({
               fill
               className="object-cover transition-transform group-hover:scale-105"
             />
-          </div>
-          <div className="mt-2 space-y-1">
-            <h3 className="font-medium truncate">{product.title}</h3>
-            <p className="text-sm text-neutral-500">
-              ₩{formatToWon(product.price)}
-            </p>
           </div>
         </Link>
       ))}

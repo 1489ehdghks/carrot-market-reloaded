@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import getSession from "./lib/session";
+import { cookies } from "next/headers";
+import { SessionData, sessionOptions } from "@/lib/session";
 
 interface Routes {
     [key:string]:boolean;
@@ -15,20 +16,22 @@ const publicOnlyUrls:Routes = {
 }
 
 export async function middleware(request: NextRequest) {
-    const session = await getSession();
+    const sessionCookie = request.cookies.get(sessionOptions.cookieName);
     const exists = publicOnlyUrls[request.nextUrl.pathname];
-    if(!session.id){
+
+    if(!sessionCookie?.value){
        if(!exists){
         return NextResponse.redirect(new URL("/", request.url));
        }
-    }else{
+    } else {
         if(exists){
-            return NextResponse.redirect(new URL("/products", request.url));
+            return NextResponse.redirect(new URL("/home", request.url));
         }
     }
-}
 
+    return NextResponse.next();
+}
 
 export const config = {
     matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
-    };
+};

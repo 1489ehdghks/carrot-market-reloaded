@@ -55,7 +55,7 @@ export default function LeftSidebar({ isVisible, onClose, onToggle }: LeftSideba
     {
       title: "Explore",
       items: [
-        { href: "/home", icon: InformationCircleIcon, activeIcon: InformationCircleSolid, label: "정보" },
+        { href: "/home", icon: InformationCircleIcon, activeIcon: InformationCircleSolid, label: "커뮤니티" },
         { href: "/products", icon: ShoppingBagIcon, activeIcon: ShoppingBagSolid, label: "작품" },
       ]
     },
@@ -69,9 +69,9 @@ export default function LeftSidebar({ isVisible, onClose, onToggle }: LeftSideba
     {
       title: "AI Assets",
       items: [
-        { href: "/assets/image", icon: PhotoIcon, activeIcon: PhotoSolid, label: "이미지 생성" },
-        { href: "/assets/video", icon: VideoCameraIcon, activeIcon: VideoCameraSolid, label: "영상 제작" },
-        { href: "/assets/custom", icon: PaintBrushIcon, activeIcon: PaintBrushSolid, label: "편집" },
+        { href: "/image", icon: PhotoIcon, activeIcon: PhotoSolid, label: "이미지 생성" },
+        { href: "/video", icon: VideoCameraIcon, activeIcon: VideoCameraSolid, label: "영상 제작" },
+        { href: "/custom", icon: PaintBrushIcon, activeIcon: PaintBrushSolid, label: "편집" },
       ]
     },
     {
@@ -126,7 +126,7 @@ export default function LeftSidebar({ isVisible, onClose, onToggle }: LeftSideba
         <div className={`flex flex-col h-full p-4 ${!isVisible ? 'invisible' : ''}`}>
           {/* 로고와 닫기 버튼 */}
           <div className="flex items-center justify-between mb-6">
-            <Link href="/" className="flex items-center gap-2 px-2 py-4 group">
+            <Link href="/home" className="flex items-center gap-2 px-2 py-4 group">
               <span className="font-cairo font-medium text-2xl text-white tracking-wide group-hover:text-[#FFB4B4] transition-colors">
                 lumi AI
               </span>

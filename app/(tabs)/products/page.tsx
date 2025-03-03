@@ -70,12 +70,12 @@ export default function ProductsPage() {
             onChange={(e) => setIsAdult(e.target.checked)}
             className="rounded"
           />
-          <span>성인용 콘텐츠 포함</span>
+          <span>nsfw</span>
         </label>
       </div>
 
-      <div className="flex justify-end gap-4">
-        <select className="rounded-lg border p-2">
+      <div className="flex justify-end gap-4 text-black">
+        <select className="rounded-lg border p-2 w-24">
           <option value="latest">최신순</option>
           <option value="popular">인기순</option>
           <option value="price">가격순</option>

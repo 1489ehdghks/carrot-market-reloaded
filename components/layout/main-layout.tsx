@@ -42,7 +42,6 @@ export default function MainLayout({
         >
           <Bars3Icon className="w-6 h-6 text-neutral-300" />
         </button>
-        <span className="text-white font-medium">lumiAI</span>
         <button
           onClick={() => setShowRightSidebar(!showRightSidebar)}
           className="p-2 rounded-lg hover:bg-neutral-800/70"
