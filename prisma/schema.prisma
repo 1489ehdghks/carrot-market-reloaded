@@ -102,10 +102,15 @@ model AIImage {
   negativePrompt String?        @db.Text
   model          String
   settings       String?
+  steps          Int?
+  cfgScale       Float?
+  sampler        String?
+  vae            String?
   views          Int            @default(0)
   downloads      Int            @default(0)
   isPublic       Boolean        @default(false)
   isFeatured     Boolean        @default(false)
+  isPermanent    Boolean        @default(false)
   isAdult        Boolean        @default(false)
   created_at     DateTime       @default(now())
   updated_at     DateTime       @updatedAt

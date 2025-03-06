@@ -9,12 +9,18 @@ import {
   FireIcon, 
   ChatBubbleBottomCenterTextIcon,
   XMarkIcon,
-  Bars3Icon 
+  Bars3Icon,
+  WindowIcon,
+  PhotoIcon,
+  DocumentTextIcon
 } from "@heroicons/react/24/outline"
-import { useState } from "react"
+import { useState, useEffect, useRef } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { Tooltip } from "@/components/ui/tooltip"
+
+import { toast } from "sonner"
+import { useRouter } from "next/navigation"
 
 interface Creation {
   id: number
@@ -47,11 +53,214 @@ interface AIChat {
   lastChat?: string
 }
 
+// 최근 생성된 AI 이미지 인터페이스
+interface AIImage {
+  id: number
+  title: string
+  fileUrl: string
+  createdAt: string
+  settings?: {
+    prompt: string;
+    negativePrompt?: string;
+    model: string;
+    size: string;
+    steps: number;
+    cfgScale: number;
+    sampler: string;
+    vae?: string;
+  }
+}
 
 interface RightSidebarProps {
   isVisible: boolean;
   onClose: () => void;
   onToggle: () => void;
+}
+
+// 최근 생성된 AI 이미지 컴포넌트
+function RecentAIImages() {
+  const router = useRouter();
+  const [recentImages, setRecentImages] = useState<AIImage[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [expanded, setExpanded] = useState(false);
+  const imagesContainerRef = useRef<HTMLDivElement>(null);
+
+  // 이미지 더 불러오기 함수
+  const fetchMoreImages = async (reset: boolean = false) => {
+    try {
+      const newPage = reset ? 1 : page;
+      setLoading(true);
+      const response = await fetch(`/api/images/recent?page=${newPage}&limit=10`); // 항상 10개씩 로드
+      
+      if (!response.ok) {
+        throw new Error('이미지를 불러오는데 실패했습니다');
+      }
+      
+      const data = await response.json();
+      
+      if (data.length === 0 || data.length < 10) {
+        setHasMore(false);
+      } else {
+        setHasMore(true);
+      }
+      
+      if (reset) {
+        setRecentImages(data);
+        setPage(2); // 첫 페이지를 불러왔으므로 다음 페이지는 2
+      } else {
+        setRecentImages(prev => [...prev, ...data]);
+        setPage(prev => prev + 1);
+      }
+    } catch (error) {
+      console.error('최근 이미지 불러오기 오류:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 초기 데이터 로드
+  useEffect(() => {
+    if (expanded) {
+      fetchMoreImages(true);
+    }
+  }, [expanded]);
+
+  // 스크롤 이벤트 핸들러
+  useEffect(() => {
+    if (!expanded || !imagesContainerRef.current) return;
+    
+    const handleScroll = () => {
+      const container = imagesContainerRef.current;
+      if (!container || loading || !hasMore) return;
+      
+      // 컨테이너 바닥에 도달했는지 확인
+      if (container.scrollHeight - container.scrollTop <= container.clientHeight + 50) {
+        fetchMoreImages(false);
+      }
+    };
+    
+    const containerElement = imagesContainerRef.current;
+    containerElement.addEventListener('scroll', handleScroll);
+    
+    return () => {
+      containerElement.removeEventListener('scroll', handleScroll);
+    };
+  }, [expanded, loading, hasMore, page]);
+
+  // 확장 버튼 토글
+  const toggleExpanded = () => {
+    const newExpandedState = !expanded;
+    setExpanded(newExpandedState);
+    
+    if (!newExpandedState) {
+      // 접을 때는 데이터를 초기화
+      setRecentImages([]);
+      setPage(1);
+      setHasMore(true);
+    }
+  };
+
+  // 이미지 클릭 시 해당 이미지의 생성 설정을 적용
+  const handleImageClick = (image: AIImage, e: React.MouseEvent) => {
+    e.preventDefault(); // 기본 링크 동작 방지
+    
+    if (!image.settings) {
+      toast.error("이미지 설정을 불러올 수 없습니다");
+      return;
+    }
+    
+    // 이미지 생성 설정을 로컬 스토리지에 저장
+    if (image.settings.prompt) localStorage.setItem('textPrompt', image.settings.prompt);
+    if (image.settings.negativePrompt) localStorage.setItem('negativePrompt', image.settings.negativePrompt);
+    if (image.settings.size) localStorage.setItem('size', image.settings.size);
+    if (image.settings.model) localStorage.setItem('model', image.settings.model);
+    if (image.settings.steps) localStorage.setItem('steps', image.settings.steps.toString());
+    if (image.settings.cfgScale) localStorage.setItem('cfgScale', image.settings.cfgScale.toString());
+    if (image.settings.sampler) localStorage.setItem('sampler', image.settings.sampler);
+    if (image.settings.vae) localStorage.setItem('vae', image.settings.vae);
+    
+    // 토스트 메시지 표시
+    toast.success("이미지 설정이 적용되었습니다");
+    
+    // 이미지 생성 페이지로 이동
+    router.push('/image');
+  };
+
+  return (
+    <div className="bg-neutral-800/50 rounded-xl overflow-hidden">
+      <div className="flex items-center justify-between px-4 py-3 bg-neutral-800/70">
+        <div className="flex items-center gap-2">
+          <PhotoIcon className="w-4 h-4 text-blue-500" />
+          <h3 className="text-sm font-medium text-neutral-300">최근 생성 이미지</h3>
+        </div>
+        <button 
+          onClick={toggleExpanded}
+          className="text-xs text-neutral-400 hover:text-white transition-colors flex items-center gap-1"
+        >
+          {expanded ? '접기' : '더보기'} 
+          {expanded ? 
+            <ChevronDoubleDownIcon className="w-3 h-3" /> : 
+            <ChevronRightIcon className="w-3 h-3" />
+          }
+        </button>
+      </div>
+      
+      {expanded && (
+        <div 
+          ref={imagesContainerRef}
+          className="grid grid-cols-2 gap-2 p-2 max-h-80 overflow-y-auto"
+        >
+          {loading && recentImages.length === 0 ? (
+            <div className="col-span-2 flex justify-center items-center py-4">
+              <div className="animate-pulse text-neutral-400 text-sm">이미지 로딩 중...</div>
+            </div>
+          ) : recentImages.length === 0 ? (
+            <div className="col-span-2 flex justify-center items-center py-4">
+              <p className="text-neutral-500 text-sm">생성된 이미지가 없습니다</p>
+            </div>
+          ) : (
+            // 이미지 목록 표시
+            recentImages.map((image) => (
+              <Tooltip key={image.id} content={`${image.title} - 클릭하여 설정 적용`}>
+                <div 
+                  onClick={(e) => handleImageClick(image, e)}
+                  className="block relative aspect-square rounded-lg overflow-hidden group cursor-pointer"
+                >
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex flex-col justify-end p-2">
+                    <span className="text-xs text-white truncate">{image.title}</span>
+                    <span className="text-[10px] text-neutral-400">{image.createdAt}</span>
+                  </div>
+                  <Image 
+                    src={image.fileUrl} 
+                    alt={image.title}
+                    className="object-cover transform group-hover:scale-105 transition-transform duration-200"
+                    fill
+                    sizes="(max-width: 768px) 50vw, 25vw"
+                  />
+                </div>
+              </Tooltip>
+            ))
+          )}
+          
+          {/* 로딩 스피너 */}
+          {loading && recentImages.length > 0 && (
+            <div className="col-span-2 flex justify-center items-center py-2">
+              <div className="w-5 h-5 border-2 border-t-transparent border-blue-500 rounded-full animate-spin"></div>
+            </div>
+          )}
+          
+          {/* 더 이상 불러올 이미지가 없을 때 */}
+          {!hasMore && recentImages.length > 0 && (
+            <div className="col-span-2 flex justify-center items-center py-2">
+              <p className="text-xs text-neutral-500">모든 이미지를 불러왔습니다</p>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
 }
 
 export default function RightSidebar({ isVisible, onClose, onToggle }: RightSidebarProps) {
@@ -305,6 +514,9 @@ export default function RightSidebar({ isVisible, onClose, onToggle }: RightSide
               ))}
             </div>
           </div>
+
+          {/* 최근 생성 이미지 섹션 */}
+          <RecentAIImages />
         </div>
       </aside>
     </>

@@ -34,7 +34,6 @@ export default function PostContent({ post }: { post: Post }) {
               height={40}
               className="object-cover"
               loading="lazy" // 지연 로딩
-              placeholder="blur" // 블러 플레이스홀더
               blurDataURL="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+P+/HgAFeAJcULXR7AAAAABJRU5ErkJggg=="
             />
           )}

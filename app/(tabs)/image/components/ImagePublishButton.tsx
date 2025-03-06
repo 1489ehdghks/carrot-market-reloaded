@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
 interface ImagePublishButtonProps {
-  imageId: number | null;
+  imageId: string | null;
 }
 
 export default function ImagePublishButton({ imageId }: ImagePublishButtonProps) {
@@ -21,7 +21,7 @@ export default function ImagePublishButton({ imageId }: ImagePublishButtonProps)
     
     setIsPublishing(true);
     try {
-      const result = await publishImage(imageId);
+      const result = await publishImage(Number(imageId));
       
       if (!result.isPublic) {
         throw new Error("이미지 공개 처리에 실패했습니다.");
