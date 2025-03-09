@@ -32,7 +32,7 @@ export function parseSettings(settingsJson: string): ImageSettings {
     return {
       prompt: parsedSettings.prompt || '',
       negativePrompt: parsedSettings.negativePrompt || '',
-      modelId: parsedSettings.modelId || 'stable-diffusion-xl',
+      modelId: parsedSettings.modelId || 'Pony-Realism-v2.2',
       width: parsedSettings.width || 1024,
       height: parsedSettings.height || 1024,
       steps: parsedSettings.steps || 30,

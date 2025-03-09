@@ -89,7 +89,7 @@ model SMSToken {
 model AIImage {
   id             Int            @id @default(autoincrement())
   title          String
-  description    String         @db.Text
+  description    String?        @db.Text
   price          Float?
   category       String
   tags           String?

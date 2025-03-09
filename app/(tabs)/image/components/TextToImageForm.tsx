@@ -8,6 +8,8 @@ import { CollapsiblePanel } from "./CollapsiblePanel";
 import { encode } from "gpt-tokenizer";
 import { CustomTooltip } from "@/components/ui/custom-tooltip";
 import { LoraOption, SelectedLora, LORA_OPTIONS, getCompatibleLoras, getLoraById } from "../data/loras";
+import { Switch } from "@/components/ui/switch";
+import ImageUploader from "./ImageUploader";
 
 interface TextToImageFormProps {
   onGenerationStart: () => void;
@@ -41,6 +43,20 @@ export default function TextToImageForm({
   const [loadingState, setLoadingState] = useState<'idle' | 'generating' | 'uploading' | 'saving'>('idle');
   const [tempImageUrl, setTempImageUrl] = useState<string | null>(null);
   const [showAdvancedSettings, setShowAdvancedSettings] = useState(false);
+  const [faceImage, setFaceImage] = useState<File | null>(null);
+  const [faceImagePreview, setFaceImagePreview] = useState<string | null>(null);
+  const [useFaceSwap, setUseFaceSwap] = useState<boolean>(false);
+  const [faceSwapStrength, setFaceSwapStrength] = useState<number>(0.8);
+  const [isProcessingFaceSwap, setIsProcessingFaceSwap] = useState<boolean>(false);
+  
+  // LoRA 관련 상태 및 함수
+  const [selectedLoras, setSelectedLoras] = useState<SelectedLora[]>([]);
+  
+  // LoRA 호환성 체크
+  const compatibleLoras = useMemo(() => {
+    const currentModelId = modelId || model;
+    return getCompatibleLoras(currentModelId);
+  }, [model, modelId]);
   
   // 토큰 수 계산 함수
   const calculateTokens = (text: string): number => {
@@ -283,6 +299,163 @@ export default function TextToImageForm({
     }
   };
   
+  // 얼굴 이미지 업로드 핸들러
+  const handleFaceImageUploaded = (file: File, previewUrl: string) => {
+    setFaceImage(file);
+    setFaceImagePreview(previewUrl);
+    
+    // 이미지가 업로드되면 자동으로 Face Swap 활성화
+    setUseFaceSwap(true);
+  };
+  
+  // 얼굴 이미지 제거 핸들러
+  const clearFaceImage = () => {
+    if (faceImagePreview) {
+      URL.revokeObjectURL(faceImagePreview);
+    }
+    setFaceImage(null);
+    setFaceImagePreview(null);
+    setUseFaceSwap(false);
+  };
+  
+  // 이미지 최적화 유틸리티 함수
+  const compressImage = async (file: File, quality = 0.8, maxDimension = 1200): Promise<File> => {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        // 이미지 크기 계산
+        let width = img.width;
+        let height = img.height;
+        
+        if (width > height && width > maxDimension) {
+          height = Math.round((height * maxDimension) / width);
+          width = maxDimension;
+        } else if (height > maxDimension) {
+          width = Math.round((width * maxDimension) / height);
+          height = maxDimension;
+        }
+        
+        // Canvas 생성 및 이미지 그리기
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        
+        if (!ctx) {
+          reject(new Error('Canvas 컨텍스트 생성 실패'));
+          return;
+        }
+        
+        ctx.drawImage(img, 0, 0, width, height);
+        
+        // Blob 생성
+        canvas.toBlob((blob) => {
+          if (!blob) {
+            reject(new Error('이미지 압축 실패'));
+            return;
+          }
+          
+          // File 객체 생성
+          const compressedFile = new File([blob], file.name, {
+            type: 'image/jpeg',
+            lastModified: Date.now()
+          });
+          
+          resolve(compressedFile);
+        }, 'image/jpeg', quality);
+      };
+      
+      img.onerror = () => reject(new Error('이미지 로드 실패'));
+      
+      // FileReader로 이미지 데이터 로드
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        if (e.target?.result) {
+          img.src = e.target.result as string;
+        } else {
+          reject(new Error('파일 읽기 실패'));
+        }
+      };
+      reader.onerror = () => reject(new Error('파일 읽기 실패'));
+      reader.readAsDataURL(file);
+    });
+  };
+
+  // 얼굴 이미지 Cloudflare 업로드 함수
+  const uploadFaceImage = async (file: File): Promise<string> => {
+    try {
+      // 이미지 사이즈 최적화 (대용량 이미지 처리)
+      let optimizedFile = file;
+      
+      // 5MB 이상인 경우 압축 처리
+      if (file.size > 5 * 1024 * 1024) {
+        optimizedFile = await compressImage(file, 0.8, 1200);
+        console.log('이미지 최적화 완료:', {
+          원본크기: Math.round(file.size / 1024) + 'KB',
+          압축크기: Math.round(optimizedFile.size / 1024) + 'KB',
+          압축률: Math.round((optimizedFile.size / file.size) * 100) + '%'
+        });
+      }
+      
+      // FormData 생성
+      const formData = new FormData();
+      formData.append('file', optimizedFile);
+      // 기존 cloudflareUpload 엔드포인트는 추가 메타데이터 매개변수를 사용하지 않음
+      
+      // 기존 업로드 API 호출
+      const response = await fetch('/api/cloudflareUpload', {
+        method: 'POST',
+        body: formData
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => null);
+        throw new Error(errorData?.error || '얼굴 이미지 업로드 실패');
+      }
+      
+      const data = await response.json();
+      console.log('얼굴 이미지 업로드 완료:', data.url);
+      return data.url;
+    } catch (error) {
+      console.error('얼굴 이미지 업로드 오류:', error);
+      throw error;
+    }
+  };
+  
+  // Face Swap 적용 함수
+  const applyFaceSwap = async (targetImageUrl: string, sourceImageUrl: string): Promise<string> => {
+    try {
+      setIsProcessingFaceSwap(true);
+      
+      console.log("Face Swap API 호출:", {
+        target_image: targetImageUrl.substring(0, 50) + "...",
+        source_image: sourceImageUrl.substring(0, 50) + "..."
+      });
+      
+      const response = await fetch("/api/face-swap", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          target_image: targetImageUrl,
+          source_image: sourceImageUrl,
+          strength: faceSwapStrength
+        }),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => null);
+        console.error("Face Swap API 응답 오류:", errorData);
+        throw new Error(errorData?.error || "Face Swap 처리 중 오류가 발생했습니다");
+      }
+      
+      const result = await response.json();
+      console.log("Face Swap 결과:", result);
+      return result.imageUrl;
+    } finally {
+      setIsProcessingFaceSwap(false);
+    }
+  };
+  
   // 이미지 생성 요청 제출 핸들러
   const handleFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -293,16 +466,30 @@ export default function TextToImageForm({
       return;
     }
     
+    // Face Swap이 활성화되어 있고 얼굴 이미지가 있는 경우 최적화된 처리
+    if (useFaceSwap && faceImage) {
+      handleGenerationWithFaceSwap();
+    } else {
+      // 기존 이미지 생성 흐름
+      handleNormalGeneration();
+    }
+  };
+  
+  // Face Swap을 적용한 이미지 생성 처리
+  const handleGenerationWithFaceSwap = async () => {
     try {
       onGenerationStart();
       setIsGenerating(true);
       setLoadingState('generating');
       
-      // 현재 선택된 모델 ID 가져오기 (외부에서 제공된 경우 그것을 우선 사용)
+      // 현재 선택된 모델 ID 가져오기
       const currentModelId = modelId || model;
       
-      // API 요청 준비
-      fetch("/api/generate", {
+      // 1. 얼굴 이미지를 base64로 변환 (병렬 처리)
+      const faceImagePromise = faceImage ? uploadFaceImage(faceImage) : Promise.resolve(null);
+      
+      // 2. 이미지 생성 요청
+      const response = await fetch("/api/generate", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -317,72 +504,126 @@ export default function TextToImageForm({
           cfgScale,
           sampler,
           vae: selectedVae,
+          loras: selectedLoras.length > 0 ? selectedLoras : undefined,
         }),
-      })
-      .then(response => {
-        if (!response.ok) {
-          return response.json().then(data => {
-            throw new Error(data?.error || `API 오류: ${response.status}`);
-          });
-        }
-        return response.json();
-      })
-      .then(result => {
-        console.log("이미지 생성 응답:", result);
-        
-        // 임시 URL 유효성 검사
-        const imageUrl = extractImageUrl(result);
-        if (!imageUrl) {
-          throw new Error("이미지 생성에 실패했습니다. 유효한 URL이 반환되지 않았습니다.");
-        }
-        
-        // 이미지 ID 추출
-        let imageId = '';
-        
-        // image.id가 있는 경우 (표준 형식)
-        if (result.image && result.image.id) {
-          imageId = String(result.image.id);
-        }
-        // id 직접 접근
-        else if (result.id) {
-          imageId = String(result.id);
-        }
-        // 다른 필드에서 ID 찾기 시도
-        else if (result.image) {
-          const possibleIdFields = ['id', 'imageId', 'cloudflareId', 'fileId'];
-          for (const field of possibleIdFields) {
-            if (result.image[field]) {
-              imageId = String(result.image[field]);
-              break;
-            }
-          }
-        }
-        
-        // 여전히 ID가 없으면 타임스탬프로 생성
-        if (!imageId) {
-          imageId = String(Date.now());
-          console.log("ID를 찾을 수 없어 타임스탬프로 대체:", imageId);
-        }
-        
-        // 생성 완료 콜백 호출
-        if (onGenerationComplete) {
-          onGenerationComplete(imageUrl, imageId);
-        }
-        
-        setIsGenerating(false);
-        setLoadingState('idle');
-      })
-      .catch(error => {
-        console.error("이미지 생성 오류:", error);
-        setIsGenerating(false);
-        setLoadingState('idle');
-        onError(error.message || "이미지 생성 중 오류가 발생했습니다.");
       });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => null);
+        throw new Error(errorData?.error || `API 오류: ${response.status}`);
+      }
+      
+      const result = await response.json();
+      console.log("이미지 생성 응답:", result);
+      
+      // 임시 URL 유효성 검사
+      const generatedImageUrl = extractImageUrl(result);
+      if (!generatedImageUrl) {
+        throw new Error("이미지 생성에 실패했습니다. 유효한 URL이 반환되지 않았습니다.");
+      }
+      
+      // 이미지 ID 추출
+      let imageId = '';
+      if (result.image && result.image.id) {
+        imageId = String(result.image.id);
+      } else if (result.id) {
+        imageId = String(result.id);
+      } else {
+        imageId = String(Date.now());
+      }
+      
+      // 3. 얼굴 이미지 base64 데이터 대기
+      const faceImageData = await faceImagePromise;
+      
+      // 얼굴 이미지가 없다면 생성된 이미지만 반환
+      if (!faceImageData) {
+        onGenerationComplete(generatedImageUrl, imageId);
+        setIsGenerating(false);
+        setLoadingState('idle');
+        return;
+      }
+      
+      // 4. Face Swap 적용 (base64 데이터 직접 사용)
+      console.log("Face Swap 적용 시작...");
+      setLoadingState('saving');
+      const swappedImageUrl = await applyFaceSwap(generatedImageUrl, faceImageData);
+      
+      // 5. 결과 처리
+      onGenerationComplete(swappedImageUrl, imageId);
+      
     } catch (error: any) {
-      console.error("요청 준비 오류:", error);
+      console.error("이미지 생성 오류:", error);
+      onError(error.message || "이미지 생성 중 오류가 발생했습니다.");
+    } finally {
       setIsGenerating(false);
       setLoadingState('idle');
-      onError(error.message || "이미지 생성 요청 준비 중 오류가 발생했습니다.");
+    }
+  };
+  
+  // 기존 이미지 생성 처리 (Face Swap 없음)
+  const handleNormalGeneration = async () => {
+    try {
+      onGenerationStart();
+      setIsGenerating(true);
+      setLoadingState('generating');
+      
+      // 현재 선택된 모델 ID 가져오기
+      const currentModelId = modelId || model;
+      
+      // API 요청 준비
+      const response = await fetch("/api/generate", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          prompt: textPrompt,
+          negativePrompt,
+          modelId: currentModelId,
+          width: parseInt(size.split('x')[0]),
+          height: parseInt(size.split('x')[1]),
+          steps,
+          cfgScale,
+          sampler,
+          vae: selectedVae,
+          loras: selectedLoras.length > 0 ? selectedLoras : undefined,
+        }),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => null);
+        throw new Error(errorData?.error || `API 오류: ${response.status}`);
+      }
+      
+      const result = await response.json();
+      
+      console.log("이미지 생성 응답:", result);
+      
+      // 임시 URL 유효성 검사
+      const imageUrl = extractImageUrl(result);
+      if (!imageUrl) {
+        throw new Error("이미지 생성에 실패했습니다. 유효한 URL이 반환되지 않았습니다.");
+      }
+      
+      // 이미지 ID 추출
+      let imageId = '';
+      if (result.image && result.image.id) {
+        imageId = String(result.image.id);
+      } else if (result.id) {
+        imageId = String(result.id);
+      } else {
+        imageId = String(Date.now());
+      }
+      
+      // 생성 완료 콜백 호출
+      onGenerationComplete(imageUrl, imageId);
+      
+    } catch (error: any) {
+      console.error("이미지 생성 오류:", error);
+      onError(error.message || "이미지 생성 중 오류가 발생했습니다.");
+    } finally {
+      setIsGenerating(false);
+      setLoadingState('idle');
     }
   };
   
@@ -578,7 +819,72 @@ export default function TextToImageForm({
           onModelChange={handleModelChange}
         />
       </CollapsiblePanel>
-      
+            {/* 얼굴 참조 이미지 섹션 */}
+            <div className="border border-neutral-800 rounded-lg p-4">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <h3 className="text-sm font-medium">얼굴 참조 이미지</h3>
+            <CustomTooltip 
+              title="얼굴 참조" 
+              description="생성된 이미지에 참조 이미지의 얼굴을 적용합니다. 선명한 얼굴 사진을 사용하세요."
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-neutral-400" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+              </svg>
+            </CustomTooltip>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-neutral-400">Face Swap</span>
+            <Switch
+              checked={useFaceSwap}
+              onCheckedChange={setUseFaceSwap}
+              disabled={!faceImage}
+            />
+          </div>
+        </div>
+
+        {faceImagePreview ? (
+          <div className="relative">
+            <img 
+              src={faceImagePreview} 
+              alt="Face reference" 
+              className="w-full h-32 object-contain rounded-md" 
+            />
+            <button 
+              type="button"
+              onClick={clearFaceImage}
+              className="absolute top-2 right-2 bg-black/50 rounded-full p-1 hover:bg-black/70"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+              </svg>
+            </button>
+          </div>
+        ) : (
+          <ImageUploader
+            onImageUploaded={handleFaceImageUploaded}
+            isDisabled={isGenerating}
+          />
+        )}
+        
+        {useFaceSwap && faceImage && (
+          <div className="mt-3">
+            <div className="flex justify-between items-center mb-1">
+              <label className="text-xs">Face Swap 강도</label>
+              <span className="text-xs text-orange-500">{faceSwapStrength.toFixed(1)}</span>
+            </div>
+            <input
+              type="range"
+              min={0.1}
+              max={1.0}
+              step={0.1}
+              value={faceSwapStrength}
+              onChange={(e) => setFaceSwapStrength(parseFloat(e.target.value))}
+              className="w-full accent-orange-500"
+            />
+          </div>
+        )}
+      </div>
       {/* 이미지 설정 */}
       <CollapsiblePanel title="이미지 설정" defaultOpen={false}>
         <div className="space-y-3">
@@ -647,7 +953,8 @@ export default function TextToImageForm({
             isGenerating || 
             !textPrompt.trim() || 
             promptTokenCount > 1500 || 
-            negativeTokenCount > 500
+            negativeTokenCount > 500 ||
+            isProcessingFaceSwap
           }
           className="w-full px-6 py-3.5 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 rounded-lg disabled:opacity-50 transition-colors flex justify-center items-center gap-2 font-medium shadow-lg"
         >
@@ -656,8 +963,9 @@ export default function TextToImageForm({
               <div className="w-4 h-4 border-2 border-t-white/20 border-white rounded-full animate-spin"></div>
               <span>
                 {loadingState === 'generating' ? '이미지 생성 중...' :
-                 loadingState === 'uploading' ? '이미지 영구 저장 중...' :
-                 loadingState === 'saving' ? '정보 저장 중...' : '처리 중...'}
+                 loadingState === 'uploading' ? '이미지 처리 중...' :
+                 loadingState === 'saving' ? (useFaceSwap ? 'Face Swap 적용 중...' : '정보 저장 중...') : 
+                 '처리 중...'}
               </span>
             </>
           ) : (
@@ -666,7 +974,7 @@ export default function TextToImageForm({
                 <path fillRule="evenodd" d="M4 5a2 2 0 00-2 2v8a2 2 0 002 2h12a2 2 0 002-2V7a2 2 0 00-2-2h-1.586a1 1 0 01-.707-.293l-1.121-1.121A2 2 0 0011.172 3H8.828a2 2 0 00-1.414.586L6.293 4.707A1 1 0 015.586 5H4z" />
                 <path fillRule="evenodd" d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
               </svg>
-              <span>이미지 생성하기</span>
+              <span>{useFaceSwap && faceImage ? '이미지 생성 및 Face Swap 적용' : '이미지 생성하기'}</span>
             </>
           )}
         </button>

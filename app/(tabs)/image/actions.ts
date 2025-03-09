@@ -31,7 +31,7 @@ interface ImageGenerationParams {
 export async function generateImageWithText({
   prompt, 
   size = "768x768", 
-  modelId = "stable-diffusion", 
+  modelId = "Pony-Realism-v2.2", 
   negativePrompt = "low quality, bad anatomy, worst quality, low resolution, blurry, blur, out of focus, watermarks, logos, letters",
   apiModel = "stability-ai/sdxl:39ed52f2a78e934b3ba6e2a89f5b1c712de7dfea535525255b1aa35c5565e08b",
   vae,

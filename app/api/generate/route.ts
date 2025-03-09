@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { z } from "zod";
-import { getModelById } from "@/app/(tabs)/image/data/models";
+import { getModelById, getDefaultModel } from "@/app/(tabs)/image/data/models";
 
 /**
  * 이미지 생성 API 엔드포인트
@@ -89,10 +89,11 @@ async function generateImageWithReplicate(params: {
 }) {
   try {
     // models.ts에서 모델 정보 가져오기
-    const modelInfo = getModelById(params.modelId);
+    let modelInfo = getModelById(params.modelId);
     
     if (!modelInfo) {
-      throw new Error(`모델을 찾을 수 없습니다: ${params.modelId}`);
+      console.warn(`모델을 찾을 수 없습니다: ${params.modelId}, 기본 모델을 사용합니다.`);
+      modelInfo = getDefaultModel();
     }
     
     // apiModel 필드에서 모델 ID와 버전 추출
