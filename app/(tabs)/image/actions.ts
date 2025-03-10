@@ -277,7 +277,7 @@ export async function generateImageWithText({
           {
             steps, 
             cfgScale, 
-            sampler: "stable-diffusion", 
+            sampler: "DPM++ 2M SDE", 
             vae,
             additionalParams
           }
@@ -602,7 +602,7 @@ async function saveImageToDatabase(
         height,
         steps: 28,
         cfgScale: 8.5,
-        sampler: "stable-diffusion",
+        sampler: "DPM++ 2M Karras",
         vae: "sdxl-vae-fp16-fix"
       }).then(async (permanentUrl) => {
         if (permanentUrl) {

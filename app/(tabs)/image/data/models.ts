@@ -37,12 +37,6 @@ export interface AIModel {
   recommendedSettings: string;
 }
 
-// VAE 옵션 정의
-export const VAE_OPTIONS = [
-  { id: 'default', name: 'Default VAE', description: '대부분의 모델에 호환되는 기본 VAE' },
-  { id: 'Pony-Realism-v2.2', name: 'Pony Realism v2.2', description: 'Pony Realism v2.2 모델에 최적화된 VAE' }
-];
-
 export const AI_MODELS: AIModel[] = [
   // Pony 모델 그룹
   {
@@ -218,15 +212,15 @@ CFG 스케일: 8
   
   // Flux 모델 그룹
   {
-    id: "flux-dev",
-    name: "Flux Developer",
+    id: "flux-dev-realism",
+    name: "flux-dev-realism",
     description: "120억 파라미터의 Rectified Flow Transformer 모델로, 텍스트 설명에서 고품질 이미지를 생성합니다.",
     features: ["고품질 이미지", "빠른 생성 속도", "우수한 텍스트 충실도"],
     vae: "default",
     category: "All",
-    apiModel: "black-forest-labs/flux-dev",
+    apiModel: "xlabs-ai/flux-dev-realism:39b3434f194f87a900d1bc2b6d4b983e90f0dde1d5022c27b52c143d670758fa",
     nsfw: false,
-    price: "가격 문의 필요",
+    price: "0.037",
     
     modelTags: {
       base: 'Flux',
@@ -239,9 +233,9 @@ CFG 스케일: 8
         name: "스텝 수",
         description: "생성 단계 수입니다. Flux 모델은 적은 스텝으로도 높은 품질의 이미지를 생성합니다.",
         type: "number",
-        default: 4,
+        default: 30,
         min: 1,
-        max: 4,
+        max: 100,
         step: 1
       },
       cfgScale: {
@@ -250,7 +244,7 @@ CFG 스케일: 8
         type: "number",
         default: 8,
         min: 1,
-        max: 20,
+        max: 30,
         step: 0.5
       },
       sampler: {

@@ -23,7 +23,8 @@ import { getModelById, getDefaultModel } from "@/app/(tabs)/image/data/models";
  *   "steps": 30,            // 생성 스텝 수
  *   "cfgScale": 7,          // CFG 스케일
  *   "sampler": "샘플러",     // 샘플러 이름
- *   "vae": "VAE 모델명"      // VAE 모델 (선택사항)
+ *   "vae": "VAE 모델명",    // VAE 모델 (선택사항)
+ *   "variantPreference": "auto" // Cloudflare 변형자 선택 옵션 추가
  * }
  * 
  * [응답 형식]
@@ -48,32 +49,6 @@ const generateImageSchema = z.object({
   sampler: z.string().default("DPM++ 2M Karras"),
   vae: z.string().optional(),
 });
-
-// Cloudflare 이미지 업로드 URL 얻기
-async function getCloudflareUploadUrl() {
-  try {
-    // Cloudflare API 호출하여 업로드 URL 받기
-    const response = await fetch(
-      `https://api.cloudflare.com/client/v4/accounts/${process.env.CLOUDFLARE_ACCOUNT_ID}/images/v1/direct_upload`,
-      {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${process.env.CLOUDFLARE_API_KEY}`,
-          "Content-Type": "application/json"
-        }
-      }
-    );
-    
-    if (!response.ok) {
-      throw new Error(`Cloudflare API 오류 (${response.status})`);
-    }
-    
-    return await response.json();
-  } catch (error) {
-    console.error("Cloudflare 업로드 URL 요청 오류:", error);
-    throw error;
-  }
-}
 
 // Replicate API를 사용하여 이미지 생성
 async function generateImageWithReplicate(params: {
@@ -111,33 +86,54 @@ async function generateImageWithReplicate(params: {
     let modelId = "";
     let versionId = "";
     
-    // 모델 ID에 버전이 함께 있는 경우 (예: "example/model:version")
-    if (apiModel.includes(":")) {
-      const parts = apiModel.split(":");
-      modelId = parts[0];
-      versionId = parts[1];
-      console.log(`모델 ID(${modelId})와 버전(${versionId}) 분리 완료`);
-    } else {
-      // 버전 없이 모델 ID만 있는 경우 (예: "example/model")
-      modelId = apiModel;
-      console.log(`모델 ID: ${modelId}, 버전 정보 없음`);
-      
-      // 하드코딩된 버전 테이블에서 조회
-      const modelVersions: Record<string, string> = {
-        "stability-ai/sdxl": "39ed52f2a78e934b3ba6e2a89f5b1c712de7dfea535525255b1aa35c5565e08b",
-        "charlesmccarthy/pony-sdxl": "b070dedae81324788c3c933a5d9e1270093dc74636214b9815dae044b4b3a58a",
-        "aisha-ai-official/pony-realism-v2.2": "142ae19de7553e50fe729910b35734eb233d8267661b8355be5a7ab0b457db1c",
-        "delta-lock/ponynai3": "ea38949bfddea2db315b598620110edfa76ddaf6313a18e6cbc6a98f496a34e9",
-        "cjwbw/anything-v3-better-vae": "09a6c1d3bf850a37c26f5c1c148ce3343b1cb10f21c961563387996a6df20cb5"
-      };
-      
-      versionId = modelVersions[modelId] || "";
-      
-      if (versionId) {
-        console.log(`버전 테이블에서 찾음: ${versionId}`);
+    // 하드코딩된 버전 테이블
+    const modelVersions: Record<string, string> = {
+      "aisha-ai-official/pony-realism-v2.2": "aisha-ai-official/pony-realism-v2.2:142ae19de7553e50fe729910b35734eb233d8267661b8355be5a7ab0b457db1c", // stable-diffusion을 기본 모델로 매핑
+      "stability-ai/sdxl": "39ed52f2a78e934b3ba6e2a89f5b1c712de7dfea535525255b1aa35c5565e08b",
+      "charlesmccarthy/pony-sdxl": "b070dedae81324788c3c933a5d9e1270093dc74636214b9815dae044b4b3a58a",
+      "delta-lock/ponynai3": "ea38949bfddea2db315b598620110edfa76ddaf6313a18e6cbc6a98f496a34e9",
+      "cjwbw/anything-v3-better-vae": "09a6c1d3bf850a37c26f5c1c148ce3343b1cb10f21c961563387996a6df20cb5",
+      "xlabs-ai/flux-dev-realism" : "39b3434f194f87a900d1bc2b6d4b983e90f0dde1d5022c27b52c143d670758fa"
+    };
+    
+    // 먼저 custom mapping에서 모델 ID 확인
+    const customMapping = modelVersions[params.modelId];
+    if (customMapping) {
+      // 커스텀 매핑이 있는 경우
+      if (customMapping.includes(":")) {
+        // 완전한 모델ID:버전 형식
+        const parts = customMapping.split(":");
+        modelId = parts[0];
+        versionId = parts[1];
+        console.log(`특수 모델 ID '${params.modelId}'를 '${modelId}'와 버전 '${versionId}'로 매핑`);
       } else {
-        console.log(`버전 정보 없음, Stability AI API로 대체`);
-        return await generateWithStabilityAI(params, modelInfo);
+        // 버전만 있는 경우
+        modelId = params.modelId;
+        versionId = customMapping;
+        console.log(`모델 ID '${modelId}'의 버전 찾음: ${versionId}`);
+      }
+    } else {
+      // apiModel에서 정보 추출
+      if (apiModel.includes(":")) {
+        // 모델 ID와 버전이 함께 있는 경우 (예: "example/model:version")
+        const parts = apiModel.split(":");
+        modelId = parts[0];
+        versionId = parts[1];
+        console.log(`모델 ID(${modelId})와 버전(${versionId}) 분리 완료`);
+      } else {
+        // 버전 없이 모델 ID만 있는 경우 (예: "example/model")
+        modelId = apiModel;
+        console.log(`모델 ID: ${modelId}, 버전 정보 없음`);
+        
+        // 버전 테이블에서 검색
+        versionId = modelVersions[modelId] || "";
+        
+        if (versionId) {
+          console.log(`버전 테이블에서 찾음: ${versionId}`);
+        } else {
+          console.log(`버전 정보를 찾을 수 없습니다. 모델 ID: ${modelId}`);
+          throw new Error(`모델 '${modelId}'의 버전 정보를 찾을 수 없습니다`);
+        }
       }
     }
     
@@ -168,13 +164,6 @@ async function generateImageWithReplicate(params: {
     if (!response.ok) {
       const errorData = await response.text();
       console.error("Replicate API 응답 오류:", errorData);
-      
-      // 이 모델에 대한 Replicate API 호출이 실패하면 대체 방법으로 Stability AI 시도
-      if (modelInfo.modelTags.base === 'SD') {
-        console.log("Replicate API 호출 실패, Stability AI API로 대체 시도");
-        return await generateWithStabilityAI(params, modelInfo);
-      }
-      
       throw new Error(`Replicate API 오류 (${response.status}): ${errorData}`);
     }
     
@@ -185,8 +174,8 @@ async function generateImageWithReplicate(params: {
     let result;
     let status = prediction.status;
     
-    // 최대 60초 동안 결과 대기 (20번 폴링, 각 3초)
-    for (let i = 0; i < 20; i++) {
+    // 최대 120초 동안 결과 대기 (30번 폴링, 각 4초)
+    for (let i = 0; i < 30; i++) {
       if (status === "succeeded") {
         result = prediction.output;
         break;
@@ -194,8 +183,8 @@ async function generateImageWithReplicate(params: {
         throw new Error(`Replicate 예측 실패: ${prediction.error || "알 수 없는 오류"}`);
       }
       
-      // 3초 대기
-      await new Promise(resolve => setTimeout(resolve, 3000));
+      // 4초 대기
+      await new Promise(resolve => setTimeout(resolve, 4000));
       
       // 상태 확인
       const statusResponse = await fetch(`https://api.replicate.com/v1/predictions/${prediction.id}`, {
@@ -219,11 +208,13 @@ async function generateImageWithReplicate(params: {
     }
     
     if (!result || (Array.isArray(result) && !result[0])) {
+      console.error("Replicate 응답 결과:", result);
+      console.error("마지막 예측 상태:", status);
       throw new Error("Replicate에서 이미지 URL을 받지 못했습니다");
     }
     
     const imageUrl = Array.isArray(result) ? result[0] : result;
-    console.log("Replicate 이미지 생성 완료:", imageUrl);
+    console.log("Replicate 이미지 생성 완료:", imageUrl.substring(0, 30) + "...");
     
     return {
       success: true,
@@ -231,66 +222,6 @@ async function generateImageWithReplicate(params: {
     };
   } catch (error) {
     console.error("이미지 생성 실패:", error);
-    throw error;
-  }
-}
-
-// Stability AI API를 사용한 대체 이미지 생성 방법
-async function generateWithStabilityAI(params: any, modelInfo: any) {
-  try {
-    console.log("Stability AI API 호출 시작");
-    
-    // 테스트 환경에서는 임시 이미지로 대체 (실제 환경에서는 Stability AI API 호출 코드로 변경)
-    // 아래 코드는 실제 API 호출 예시입니다
-    
-    const response = await fetch("https://api.stability.ai/v1/generation/stable-diffusion-xl-1024-v1-0/text-to-image", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Accept": "application/json",
-        "Authorization": `Bearer ${process.env.STABILITY_API_KEY}`
-      },
-      body: JSON.stringify({
-        text_prompts: [
-          {
-            text: params.prompt,
-            weight: 1.0
-          },
-          {
-            text: params.negativePrompt || "",
-            weight: -1.0
-          }
-        ],
-        cfg_scale: params.cfgScale,
-        height: params.height,
-        width: params.width,
-        samples: 1,
-        steps: params.steps
-      })
-    });
-    
-    if (!response.ok) {
-      throw new Error(`Stability AI API 오류: ${response.status}`);
-    }
-    
-    const responseData = await response.json();
-    const base64Image = responseData.artifacts[0].base64;
-    
-    // base64 이미지를 Blob으로 변환하고 임시 URL 생성
-    const binary = atob(base64Image);
-    const bytes = new Uint8Array(binary.length);
-    for (let i = 0; i < binary.length; i++) {
-      bytes[i] = binary.charCodeAt(i);
-    }
-    const blob = new Blob([bytes], { type: 'image/png' });
-    const imageUrl = URL.createObjectURL(blob);
-
-    return {
-      success: true,
-      imageUrl: imageUrl
-    };
-  } catch (error) {
-    console.error("Stability AI 이미지 생성 실패:", error);
     throw error;
   }
 }
@@ -308,57 +239,156 @@ async function generateAndUploadImage(params: {
   vae?: string;
 }) {
   try {
-    // 1. Cloudflare 업로드 URL 요청 (병렬 처리)
-    const cloudflarePromise = getCloudflareUploadUrl();
+    // 1. Replicate API로 이미지 생성
+    const imageGenerationResult = await generateImageWithReplicate(params);
     
-    // 2. Replicate API로 이미지 생성 (병렬 처리)
-    const imagePromise = generateImageWithReplicate(params);
-    
-    // 두 작업 동시 처리
-    const [cloudflareData, imageData] = await Promise.all([cloudflarePromise, imagePromise]);
-    
-    if (!cloudflareData.success || !imageData.success) {
-      throw new Error("이미지 생성 또는 업로드 URL 요청 실패");
+    if (!imageGenerationResult.success || !imageGenerationResult.imageUrl) {
+      throw new Error("Replicate에서 이미지 생성 실패");
     }
     
-    // 3. Replicate에서 생성된 이미지 다운로드 후 Cloudflare에 업로드
-    const imageResponse = await fetch(imageData.imageUrl);
-    if (!imageResponse.ok) {
-      throw new Error("생성된 이미지 다운로드 실패");
+    const replicateImageUrl = imageGenerationResult.imageUrl;
+    console.log("이미지 URL 생성 완료:", replicateImageUrl.substring(0, 30) + "...");
+    
+    // 2. Cloudflare Images API로 업로드
+    const apiKey = process.env.CLOUDFLARE_API_KEY;
+    const accountId = process.env.CLOUDFLARE_ACCOUNT_ID;
+    
+    if (!apiKey || !accountId) {
+      console.error("Cloudflare API 키 또는 계정 ID가 없습니다");
+      // API 키가 없어도 Replicate 이미지 URL 반환
+      return {
+        success: true,
+        cloudflareId: "direct",
+        imageUrl: replicateImageUrl
+      };
     }
     
-    const imageBlob = await imageResponse.blob();
-    
-    // 4. Cloudflare에 업로드
-    const formData = new FormData();
-    formData.append("file", imageBlob);
-    
-    const uploadResponse = await fetch(cloudflareData.result.uploadURL, {
-      method: "POST",
-      body: formData
-    });
-    
-    if (!uploadResponse.ok) {
-      throw new Error("Cloudflare 업로드 실패");
+    try {
+      // Replicate에서 이미지 직접 다운로드
+      console.log("Replicate 이미지 다운로드 중...");
+      const imageResponse = await fetch(replicateImageUrl);
+      
+      if (!imageResponse.ok) {
+        console.warn(`이미지 다운로드 실패 (${imageResponse.status}), 원본 URL 사용`);
+        return {
+          success: true,
+          cloudflareId: "direct",
+          imageUrl: replicateImageUrl
+        };
+      }
+      
+      // 이미지 데이터를 ArrayBuffer로 가져옴
+      const imageArrayBuffer = await imageResponse.arrayBuffer();
+      const imageBuffer = Buffer.from(imageArrayBuffer);
+      
+      // Cloudflare 직접 업로드 URL 요청
+      console.log("Cloudflare 업로드 URL 요청 중...");
+      const uploadUrlResponse = await fetch(
+        `https://api.cloudflare.com/client/v4/accounts/${accountId}/images/v1/direct_upload`,
+        {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${apiKey}`,
+            "Content-Type": "application/json"
+          }
+        }
+      );
+      
+      if (!uploadUrlResponse.ok) {
+        console.warn(`Cloudflare 업로드 URL 요청 실패 (${uploadUrlResponse.status}), 원본 URL 사용`);
+        return {
+          success: true,
+          cloudflareId: "direct",
+          imageUrl: replicateImageUrl
+        };
+      }
+      
+      const uploadUrlData = await uploadUrlResponse.json();
+      
+      if (!uploadUrlData.success) {
+        console.warn("Cloudflare 업로드 URL 응답 실패, 원본 URL 사용");
+        return {
+          success: true,
+          cloudflareId: "direct",
+          imageUrl: replicateImageUrl
+        };
+      }
+      
+      // FormData 생성 및 이미지 첨부
+      const formData = new FormData();
+      const filename = `ai-image-${Date.now()}.png`;
+      const blob = new Blob([imageBuffer], { type: "image/png" });
+      const file = new File([blob], filename, { type: "image/png" });
+      formData.append("file", file);
+      
+      // Cloudflare로 이미지 업로드
+      console.log("Cloudflare에 이미지 업로드 중...");
+      const uploadResponse = await fetch(uploadUrlData.result.uploadURL, {
+        method: "POST",
+        body: formData
+      });
+      
+      if (!uploadResponse.ok) {
+        console.warn(`Cloudflare 이미지 업로드 실패 (${uploadResponse.status}), 원본 URL 사용`);
+        return {
+          success: true,
+          cloudflareId: "direct",
+          imageUrl: replicateImageUrl
+        };
+      }
+      
+      const uploadResult = await uploadResponse.json();
+      
+      if (!uploadResult.success) {
+        console.warn("Cloudflare 업로드 결과 실패, 원본 URL 사용");
+        return {
+          success: true,
+          cloudflareId: "direct",
+          imageUrl: replicateImageUrl
+        };
+      }
+      
+      console.log("Cloudflare 업로드 성공, 이미지 ID:", uploadResult.result.id);
+      
+      return {
+        success: true,
+        cloudflareId: uploadResult.result.id,
+        imageUrl: uploadResult.result.variants[0],
+        variants: uploadResult.result.variants
+      };
+    } catch (cloudflareError) {
+      // Cloudflare 업로드 중 오류 발생 시 원본 URL 반환
+      console.error("Cloudflare 업로드 중 오류:", cloudflareError);
+      return {
+        success: true,
+        cloudflareId: "direct",
+        imageUrl: replicateImageUrl
+      };
     }
-    
-    const uploadResult = await uploadResponse.json();
-    
-    if (!uploadResult.success) {
-      throw new Error("업로드 결과가 실패 상태입니다");
-    }
-    
-    // 5. 영구 URL 반환
-    const permanentUrl = uploadResult.result.variants[0];
-    
-    return {
-      success: true,
-      cloudflareId: uploadResult.result.id,
-      imageUrl: permanentUrl
-    };
   } catch (error) {
     console.error("이미지 생성 및 업로드 실패:", error);
     throw error;
+  }
+}
+
+// 기존 변형자를 public 변형자로 교체하는 함수
+function generatePublicVariantUrl(originalUrl: string): string {
+  try {
+    // Cloudflare 이미지 URL 예시:
+    // https://imagedelivery.net/abcdefg/some-id/variant
+    
+    const urlParts = originalUrl.split('/');
+    if (urlParts.length < 4) {
+      console.warn("예상된 Cloudflare URL 형식이 아닙니다:", originalUrl);
+      return originalUrl;
+    }
+    
+    // 마지막 부분(변형자)만 'public'으로 교체
+    urlParts[urlParts.length - 1] = 'public';
+    return urlParts.join('/');
+  } catch (error) {
+    console.error("URL 변환 중 오류:", error);
+    return originalUrl; // 오류 발생 시 원본 반환
   }
 }
 
@@ -391,7 +421,11 @@ export async function POST(request: Request) {
     
     if (!validationResult.success) {
       console.error("유효성 검사 실패:", validationResult.error.format());
-      return NextResponse.json({ error: "유효하지 않은 요청 형식입니다", details: validationResult.error.format() }, { status: 400 });
+      return NextResponse.json({ 
+        success: false,
+        error: "유효하지 않은 요청 형식입니다", 
+        details: validationResult.error.format() 
+      }, { status: 400 });
     }
     
     const {
@@ -408,7 +442,7 @@ export async function POST(request: Request) {
     
     try {
       // 이미지 생성과 Cloudflare 업로드를 단일 프로세스로 처리
-      const { success, cloudflareId, imageUrl } = await generateAndUploadImage({
+      const { success, cloudflareId, imageUrl, variants } = await generateAndUploadImage({
         prompt,
         negativePrompt,
         width,
@@ -423,6 +457,9 @@ export async function POST(request: Request) {
       if (!success || !imageUrl) {
         throw new Error("이미지 생성 또는 업로드 실패");
       }
+      
+      // 썸네일용 public URL 생성 (원본 URL에서 변형자 교체)
+      const thumbnailUrl = generatePublicVariantUrl(imageUrl);
       
       // 데이터베이스에 이미지 정보 저장
       const newImage = await db.aIImage.create({
@@ -443,7 +480,7 @@ export async function POST(request: Request) {
           isPermanent: true,
           isPublic: false,
           fileUrl: imageUrl,
-          thumbnailUrl: imageUrl,
+          thumbnailUrl: thumbnailUrl, // 작은 용량을 위해 public 변형자 사용
           format: "png",
         }
       });
@@ -458,51 +495,38 @@ export async function POST(request: Request) {
     } catch (uploadError: any) {
       console.error("이미지 생성/업로드 오류:", uploadError);
       
-      // 오류 발생 시 테스트용 임시 이미지 생성 (개발 환경 전용)
-      if (process.env.NODE_ENV === "development") {
-        const fallbackUrl = `https://placehold.co/${width}x${height}/png?text=Error:+${uploadError.message?.substring(0, 20) || "Unknown"}`;
-        
-        const newImage = await db.aIImage.create({
-          data: {
-            userId: session.id,
-            title: `[오류] AI 생성 이미지 - ${prompt.substring(0, 30)}...`,
-            description: prompt,
-            category: "AI",
-            prompt,
-            negativePrompt: negativePrompt || "",
-            width,
-            height,
-            model: modelId,
-            steps: steps,
-            cfgScale: cfgScale,
-            sampler: sampler,
-            vae: vae || null,
-            isPermanent: false,
-            isPublic: false,
-            fileUrl: fallbackUrl,
-            thumbnailUrl: fallbackUrl,
-            format: "png",
-          }
-        });
-        
-        return NextResponse.json({
-          success: false,
-          warning: "이미지 생성 중 오류가 발생했습니다. 임시 이미지가 제공됩니다.",
-          error: uploadError.message,
-          image: {
-            id: newImage.id,
-            url: fallbackUrl,
-          }
-        });
+      // 더 자세한 에러 메시지 구성
+      let errorMessage = "이미지 생성 중 오류가 발생했습니다";
+      let errorDetails = "";
+      
+      if (uploadError.message) {
+        if (uploadError.message.includes("NSFW")) {
+          errorMessage = "NSFW 콘텐츠가 감지되었습니다. 다른 프롬프트를 사용해주세요.";
+          errorDetails = "안전하지 않은 콘텐츠";
+        } else if (uploadError.message.includes("Cloudflare")) {
+          errorMessage = "이미지 업로드 중 오류가 발생했습니다.";
+          errorDetails = uploadError.message;
+        } else if (uploadError.message.includes("Replicate")) {
+          errorMessage = "이미지 생성 API에서 오류가 발생했습니다.";
+          errorDetails = uploadError.message;
+        } else {
+          errorDetails = uploadError.message;
+        }
       }
       
-      throw uploadError;
+      // 명확한 에러 반환
+      return NextResponse.json({ 
+        success: false, 
+        error: errorMessage, 
+        details: errorDetails
+      }, { status: 500 });
     }
   } catch (error: any) {
-    console.error("[GENERATE_API_ERROR]", error);
+    console.error("API 요청 처리 중 예외 발생:", error);
     return NextResponse.json({ 
-      error: "이미지 생성 중 오류가 발생했습니다", 
-      message: error.message 
+      success: false, 
+      error: "서버 내부 오류가 발생했습니다", 
+      details: error.message || "Unknown error"
     }, { status: 500 });
   }
 } 

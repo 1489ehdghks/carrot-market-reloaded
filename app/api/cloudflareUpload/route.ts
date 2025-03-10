@@ -10,13 +10,20 @@ export async function POST(request: NextRequest) {
 
     const formData = await request.formData();
     const file = formData.get('file') as File;
+    const width = formData.get('width') ? Number(formData.get('width')) : undefined;
+    const height = formData.get('height') ? Number(formData.get('height')) : undefined;
+    const usePublicVariant = formData.get('usePublicVariant') === 'true';
 
     if (!file) {
       return NextResponse.json({ error: '파일이 없습니다' }, { status: 400 });
     }
 
     // Cloudflare Images를 사용하여 파일 업로드
-    const uploadResponse = await uploadToCloudflare(file);
+    const uploadResponse = await uploadToCloudflare(file, {
+      width,
+      height,
+      usePublicVariant
+    });
 
     return NextResponse.json({ url: uploadResponse.url });
   } catch (error) {
@@ -25,8 +32,63 @@ export async function POST(request: NextRequest) {
   }
 }
 
+// 크기 기반 변형자 선택 함수
+function selectVariantBySize(
+  allVariants: string[], 
+  options: { 
+    width?: number; 
+    height?: number; 
+    usePublicVariant?: boolean;
+  }
+) {
+  const { width, height, usePublicVariant } = options;
+  
+  // 작은 이미지 기준 (작은 이미지는 public 변형자 사용)
+  const SMALL_IMAGE_THRESHOLD = 600; // 600px 이하면 작은 이미지로 간주
+  
+  // usePublicVariant 플래그가 명시적으로 true면 public 변형자 사용
+  if (usePublicVariant) {
+    const publicVariant = allVariants.find(v => v.includes('/public'));
+    if (publicVariant) return publicVariant;
+  }
+
+  // 크기에 따른 변형자 선택
+  if (width && height) {
+    // 작은 이미지면 public 사용
+    if (width <= SMALL_IMAGE_THRESHOLD && height <= SMALL_IMAGE_THRESHOLD) {
+      const publicVariant = allVariants.find(v => v.includes('/public'));
+      if (publicVariant) return publicVariant;
+    }
+    
+    // 가로가 더 긴 이미지는 width 변형자 사용
+    if (width > height) {
+      const widthVariant = allVariants.find(v => v.includes('/width'));
+      if (widthVariant) return widthVariant;
+    } 
+    // 세로가 더 긴 이미지는 height 변형자 사용
+    else if (height > width) {
+      const heightVariant = allVariants.find(v => v.includes('/height'));
+      if (heightVariant) return heightVariant;
+    }
+  }
+  
+  // 기본값: normal 변형자 (일반적인 크기 조정)
+  const normalVariant = allVariants.find(v => v.includes('/normal'));
+  if (normalVariant) return normalVariant;
+  
+  // 마지막 대안: 첫 번째 변형자 반환
+  return allVariants[0];
+}
+
 // Cloudflare Images 업로드 함수
-async function uploadToCloudflare(file: File) {
+async function uploadToCloudflare(
+  file: File, 
+  options: { 
+    width?: number; 
+    height?: number; 
+    usePublicVariant?: boolean;
+  } = {}
+) {
   try {
     console.log("Cloudflare 업로드 프로세스 시작...");
     
@@ -84,11 +146,13 @@ async function uploadToCloudflare(file: File) {
     
     console.log("Cloudflare 파일 업로드 성공");
     
-    // 3. 영구 URL 반환
-    const permanentUrl = uploadResult.result.variants[0];
+    // 3. 크기 기반 변형자 선택
+    const variants = uploadResult.result.variants;
+    const selectedVariant = selectVariantBySize(variants, options);
+    
     return {
       success: true,
-      url: permanentUrl,
+      url: selectedVariant,
       id: uploadResult.result.id
     };
   } catch (error) {

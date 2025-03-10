@@ -33,12 +33,12 @@ export function parseSettings(settingsJson: string): ImageSettings {
       prompt: parsedSettings.prompt || '',
       negativePrompt: parsedSettings.negativePrompt || '',
       modelId: parsedSettings.modelId || 'Pony-Realism-v2.2',
-      width: parsedSettings.width || 1024,
-      height: parsedSettings.height || 1024,
+      width: parsedSettings.width || 768,
+      height: parsedSettings.height || 768,
       steps: parsedSettings.steps || 30,
       cfgScale: parsedSettings.cfgScale || 7,
       sampler: parsedSettings.sampler || 'DPM++ 2M Karras',
-      vae: parsedSettings.vae !== undefined ? parsedSettings.vae : true
+      vae: parsedSettings.vae || ''
     };
   } catch (error) {
     console.error('Failed to parse settings:', error);
@@ -116,48 +116,24 @@ export async function copySettingsToClipboard(settings: ImageSettings): Promise<
  */
 export function getRecommendedSettingsForModel(modelId: string): Partial<ImageSettings> {
   const defaultSettings: Partial<ImageSettings> = {
-    width: 1024,
-    height: 1024,
+    width: 768,
+    height: 768,
     steps: 30,
     cfgScale: 7,
     sampler: 'DPM++ 2M Karras',
-    vae: true
+    vae: 'Default VAE'
   };
 
   // 모델별 특화 세팅 (필요시 확장)
   const modelSettings: Record<string, Partial<ImageSettings>> = {
     'stable-diffusion-xl': {
-      width: 1024,
-      height: 1024,
+      width: 768,
+      height: 768,
       steps: 30,
       cfgScale: 7,
       sampler: 'DPM++ 2M Karras',
-      vae: true
+      vae: 'Default VAE'
     },
-    'stable-diffusion-1.5': {
-      width: 512,
-      height: 512,
-      steps: 28,
-      cfgScale: 7.5,
-      sampler: 'Euler a',
-      vae: true
-    },
-    'sdxl-turbo': {
-      width: 1024,
-      height: 1024,
-      steps: 4,
-      cfgScale: 2,
-      sampler: 'Euler a',
-      vae: true
-    },
-    'anime-diffusion': {
-      width: 512,
-      height: 768,
-      steps: 28,
-      cfgScale: 9,
-      sampler: 'DPM++ SDE Karras',
-      vae: true
-    }
   };
 
   return modelSettings[modelId] || defaultSettings;

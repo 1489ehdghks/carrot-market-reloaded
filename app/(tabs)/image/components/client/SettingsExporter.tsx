@@ -21,7 +21,7 @@ export interface ImageSettings {
   steps: number;
   cfgScale: number;
   sampler: string;
-  vae: boolean;
+  vae: string;
 }
 
 interface SettingsExporterProps {

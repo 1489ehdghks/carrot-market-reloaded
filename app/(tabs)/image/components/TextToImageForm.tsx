@@ -3,11 +3,13 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { generateImageWithText, getImageUploadUrl, saveGeneratedImage, permanentlyStoreAIImage } from "../actions";
 import ModelSelector from "./ModelSelector";
-import { AI_MODELS, VAE_OPTIONS, getDefaultModel, getModelById } from "../data/models";
+import { AI_MODELS, getDefaultModel, getModelById } from "../data/models";
+import { SAMPLER_OPTIONS, getDefaultSampler } from "../data/samplers";
+import { VAE_OPTIONS, getDefaultVae } from "../data/vae";
 import { CollapsiblePanel } from "./CollapsiblePanel";
 import { encode } from "gpt-tokenizer";
 import { CustomTooltip } from "@/components/ui/custom-tooltip";
-import { LoraOption, SelectedLora, LORA_OPTIONS, getCompatibleLoras, getLoraById } from "../data/loras";
+import { LoraOption, SelectedLora, getCompatibleLoras, getLoraById } from "../data/loras";
 import { Switch } from "@/components/ui/switch";
 import ImageUploader from "./ImageUploader";
 
@@ -37,9 +39,9 @@ export default function TextToImageForm({
   const [isGenerating, setIsGenerating] = useState(false);
   const [steps, setSteps] = useState(28);
   const [cfgScale, setCfgScale] = useState(7);
-  const [sampler, setSampler] = useState("DPM++ 2M SDE");
+  const [sampler, setSampler] = useState(getDefaultSampler());
   const [activeTab, setActiveTab] = useState<'prompt' | 'negative'>('prompt');
-  const [selectedVae, setSelectedVae] = useState("default");
+  const [selectedVae, setSelectedVae] = useState(getDefaultVae());
   const [loadingState, setLoadingState] = useState<'idle' | 'generating' | 'uploading' | 'saving'>('idle');
   const [tempImageUrl, setTempImageUrl] = useState<string | null>(null);
   const [showAdvancedSettings, setShowAdvancedSettings] = useState(false);
@@ -123,30 +125,33 @@ export default function TextToImageForm({
 
   // 모델별 설정 변경 핸들러
   const handleSettingChange = (key: string, value: any) => {
-    console.log(`설정 변경: ${key} = ${value}`);
+    // 키에서 접두사 제거
+    const originalKey = key.replace('model-config-', '');
     
-    if (key === 'steps') {
+    console.log(`설정 변경: ${originalKey} = ${value}`);
+    
+    if (originalKey === 'steps') {
       setSteps(Number(value));
       // 로컬 스토리지에 저장
       localStorage.setItem('steps', value.toString());
-    } else if (key === 'cfgScale') {
+    } else if (originalKey === 'cfgScale') {
       setCfgScale(Number(value));
       // 로컬 스토리지에 저장
       localStorage.setItem('cfgScale', value.toString());
-    } else if (key === 'sampler') {
+    } else if (originalKey === 'sampler') {
       setSampler(value);
       // 로컬 스토리지에 저장
       localStorage.setItem('sampler', value);
     } else {
       setModelSpecificSettings(prev => ({
         ...prev,
-        [key]: value
+        [originalKey]: value
       }));
       
       // 모델별 설정도 로컬 스토리지에 저장
       const savedSettings = JSON.parse(localStorage.getItem('modelSpecificSettings') || '{}');
       savedSettings[model] = savedSettings[model] || {};
-      savedSettings[model][key] = value;
+      savedSettings[model][originalKey] = value;
       localStorage.setItem('modelSpecificSettings', JSON.stringify(savedSettings));
     }
   };
@@ -209,8 +214,8 @@ export default function TextToImageForm({
       onModelChange(newModelId);
     }
     
-    // 모델에 따른 기본 설정값 업데이트
-    handleResetSettings(newModelId);
+    // 모델 ID만 변경하고 설정은 항상 유지
+    localStorage.setItem('model', newModelId);
   };
 
   // Cloudflare에 이미지 업로드 함수
@@ -635,13 +640,21 @@ export default function TextToImageForm({
   
   // 설정 UI 렌더링 함수
   const renderSettingField = (key: string, config: any) => {
-    const value = key === 'steps' 
+    // 키에서 접두사 제거
+    const originalKey = key.replace('model-config-', '');
+    
+    // 샘플러 필드는 건너뛰기 (중복 제거)
+    if (originalKey === 'sampler') {
+      return null;
+    }
+    
+    const value = originalKey === 'steps' 
       ? steps 
-      : key === 'cfgScale' 
+      : originalKey === 'cfgScale' 
         ? cfgScale 
-        : key === 'sampler' 
+        : originalKey === 'sampler' 
           ? sampler 
-          : modelSpecificSettings[key];
+          : modelSpecificSettings[originalKey];
     
     // 값이 정의되지 않은 경우 기본값 사용  
     const effectiveValue = value !== undefined ? value : config.default;
@@ -893,14 +906,17 @@ export default function TextToImageForm({
             <div className="grid grid-cols-4 gap-2">
               {sizePresets.map((preset) => (
                 <button
-                  key={preset.value}
+                  key={`size-preset-${preset.value}`}
                   type="button"
                   className={`p-2 rounded-lg border text-sm ${
                     size === preset.value 
                       ? 'border-orange-500 bg-orange-500/20 text-orange-500' 
                       : 'border-neutral-700 hover:border-neutral-600'
                   }`}
-                  onClick={() => setSize(preset.value)}
+                  onClick={() => {
+                    setSize(preset.value);
+                    localStorage.setItem('size', preset.value);
+                  }}
                 >
                   {preset.label}
                 </button>
@@ -911,9 +927,37 @@ export default function TextToImageForm({
           {/* 모델별 설정 렌더링 */}
           {selectedModel.configOptions && 
             Object.entries(selectedModel.configOptions).map(([key, config]) => 
-              renderSettingField(key, config)
+              renderSettingField(`model-config-${key}`, config)
             )
           }
+          
+          {/* Cloudflare 이미지 저장 방식 설정 제거 */}
+          
+          {/* 샘플러 설정 */}
+          <div className="mb-3">
+            <label className="flex items-center gap-1 text-sm mb-1">
+              <span>샘플러 방식</span>
+              <CustomTooltip 
+                title="샘플러" 
+                description="다양한 샘플링 방식은 이미지 생성 속도와 품질에 영향을 줍니다."
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-neutral-400" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                </svg>
+              </CustomTooltip>
+            </label>
+            <select
+              value={sampler}
+              onChange={(e) => setSampler(e.target.value)}
+              className="w-full bg-neutral-800 rounded-lg p-2 text-sm"
+            >
+              {SAMPLER_OPTIONS.map((samplerOption) => (
+                <option key={`sampler-${samplerOption.id}`} value={samplerOption.id} title={samplerOption.description}>
+                  {samplerOption.name}
+                </option>
+              ))}
+            </select>
+          </div>
           
           {/* VAE 설정 - 지원하는 모델에만 표시 */}
           {selectedModel.vae && (
@@ -921,8 +965,8 @@ export default function TextToImageForm({
               <label className="flex items-center gap-1 text-sm mb-1">
                 <span>VAE 설정</span>
                 <CustomTooltip 
-                  title="VAE 설정" 
-                  description="Variational Auto-Encoder 설정. 이미지의 색상과 대비에 영향을 줍니다."
+                  title="VAE" 
+                  description="이미지의 색상과 대비에 영향을 줍니다."
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-neutral-400" viewBox="0 0 20 20" fill="currentColor">
                     <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
@@ -934,8 +978,8 @@ export default function TextToImageForm({
               onChange={(e) => setSelectedVae(e.target.value)}
               className="w-full bg-neutral-800 rounded-lg p-2 text-sm"
             >
-                {VAE_OPTIONS.map((vae: { id: string, name: string, description: string }) => (
-                <option key={vae.id} value={vae.id} title={vae.description}>
+                {VAE_OPTIONS.map((vae) => (
+                <option key={`vae-${vae.id}`} value={vae.id} title={vae.description}>
                   {vae.name}
                 </option>
               ))}
