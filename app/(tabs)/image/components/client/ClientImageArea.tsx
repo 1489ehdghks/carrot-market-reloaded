@@ -25,6 +25,17 @@ export default function ClientImageArea() {
     setIsGenerating(false);
   };
   
+  // 영구 URL로 업데이트하는 함수
+  const handleUrlUpdate = (imageId: string, permanentUrl: string) => {
+    console.log("영구 URL로 업데이트:", { imageId, permanentUrl });
+    
+    // 현재 표시 중인 이미지의 ID와 일치하는 경우에만 업데이트
+    if (imageId === generatedImageId) {
+      setGeneratedImageUrl(permanentUrl);
+      console.log("이미지 URL이 영구 URL로 업데이트되었습니다:", permanentUrl);
+    }
+  };
+  
   const handleResetImage = () => {
     setGeneratedImageUrl(null);
     setGeneratedImageId(null);
@@ -34,7 +45,8 @@ export default function ClientImageArea() {
   const formProps = {
     onGenerationStart: handleGenerationStart,
     onGenerationComplete: handleGenerationComplete,
-    onError: handleGenerationError
+    onError: handleGenerationError,
+    onUrlUpdate: handleUrlUpdate
   };
   
   // 이 상태 및 핸들러를 전역 상태로 내보내 TextToImageForm에서 접근할 수 있게 함

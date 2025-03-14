@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useMemo } from "react";
-import { generateImageWithText, getImageUploadUrl, saveGeneratedImage, permanentlyStoreAIImage } from "../actions";
+import { generateImageWithText, generateImageWithImage } from "../actions";
+import { getImageUploadUrl, saveGeneratedImage } from "../actions";
 import ModelSelector from "./ModelSelector";
 import { AI_MODELS, getDefaultModel, getModelById } from "../data/models";
 import { SAMPLER_OPTIONS, getDefaultSampler } from "../data/samplers";
@@ -12,6 +13,9 @@ import { CustomTooltip } from "@/components/ui/custom-tooltip";
 import { LoraOption, SelectedLora, getCompatibleLoras, getLoraById } from "../data/loras";
 import { Switch } from "@/components/ui/switch";
 import ImageUploader from "./ImageUploader";
+import { useNotification } from "@/components/ui/notification";
+import { handleGlobalError, UserFacingError } from "@/app/lib/error-handling";
+
 
 interface TextToImageFormProps {
   onGenerationStart: () => void;
@@ -20,6 +24,7 @@ interface TextToImageFormProps {
   compact?: boolean;
   modelId?: string;
   onModelChange?: (modelId: string) => void;
+  onUrlUpdate?: (imageId: string, permanentUrl: string) => void;
 }
 
 export default function TextToImageForm({ 
@@ -28,13 +33,15 @@ export default function TextToImageForm({
   onError,
   compact = false,
   modelId,
-  onModelChange
+  onModelChange,
+  onUrlUpdate
 }: TextToImageFormProps) {
+  const { showNotification } = useNotification();
   const [textPrompt, setTextPrompt] = useState("");
   const [negativePrompt, setNegativePrompt] = useState("");
   const [promptTokenCount, setPromptTokenCount] = useState(0);
   const [negativeTokenCount, setNegativeTokenCount] = useState(0);
-  const [size, setSize] = useState("1024x1024");
+  const [size, setSize] = useState("");
   const [model, setModel] = useState("stable-diffusion");
   const [isGenerating, setIsGenerating] = useState(false);
   const [steps, setSteps] = useState(28);
@@ -44,7 +51,6 @@ export default function TextToImageForm({
   const [selectedVae, setSelectedVae] = useState(getDefaultVae());
   const [loadingState, setLoadingState] = useState<'idle' | 'generating' | 'uploading' | 'saving'>('idle');
   const [tempImageUrl, setTempImageUrl] = useState<string | null>(null);
-  const [showAdvancedSettings, setShowAdvancedSettings] = useState(false);
   const [faceImage, setFaceImage] = useState<File | null>(null);
   const [faceImagePreview, setFaceImagePreview] = useState<string | null>(null);
   const [useFaceSwap, setUseFaceSwap] = useState<boolean>(false);
@@ -218,21 +224,6 @@ export default function TextToImageForm({
     localStorage.setItem('model', newModelId);
   };
 
-  // Cloudflare에 이미지 업로드 함수
-  const uploadToCloudflare = async (imageUrl: string): Promise<string> => {
-    // 기존 API 호출 없이 바로 동일한 URL 반환 (테스트 환경)
-    return imageUrl;
-  };
-
-  // 생성된 AI 이미지를 데이터베이스에 저장
-  const permanentlyStoreAIImage = async (imageData: any): Promise<any> => {
-    // 새 API는 이미 데이터베이스에 저장했으므로 단순히 ID와 URL 반환
-    return {
-      id: imageData.fileUrl.split('/').pop() || String(Date.now()),
-      url: imageData.fileUrl
-    };
-  };
-
   // 모델 변경 시 설정 재설정
   const handleResetSettings = (newModelId?: string) => {
     const modelToUse = newModelId || model;
@@ -402,28 +393,19 @@ export default function TextToImageForm({
         });
       }
       
-      // FormData 생성
-      const formData = new FormData();
-      formData.append('file', optimizedFile);
-      // 기존 cloudflareUpload 엔드포인트는 추가 메타데이터 매개변수를 사용하지 않음
-      
-      // 기존 업로드 API 호출
-      const response = await fetch('/api/cloudflareUpload', {
-        method: 'POST',
-        body: formData
+      // 파일을 Data URL로 변환
+      const fileReader = new FileReader();
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        fileReader.onload = () => resolve(fileReader.result as string);
+        fileReader.onerror = reject;
+        fileReader.readAsDataURL(optimizedFile);
       });
       
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => null);
-        throw new Error(errorData?.error || '얼굴 이미지 업로드 실패');
-      }
-      
-      const data = await response.json();
-      console.log('얼굴 이미지 업로드 완료:', data.url);
-      return data.url;
+      // 임시 이미지 URL 생성 (데이터 URL)
+      return dataUrl;
     } catch (error) {
-      console.error('얼굴 이미지 업로드 오류:', error);
-      throw error;
+      console.error('얼굴 이미지 처리 오류:', error);
+      throw new Error('얼굴 이미지 처리 중 오류가 발생했습니다');
     }
   };
   
@@ -461,28 +443,247 @@ export default function TextToImageForm({
     }
   };
   
-  // 이미지 생성 요청 제출 핸들러
-  const handleFormSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    
-    if (!textPrompt) {
-      onError("프롬프트를 입력해주세요.");
-      return;
+  // 입력 유효성 검사 함수
+  const validateInputs = (): boolean => {
+    // 프롬프트 검사
+    if (!textPrompt || textPrompt.trim() === "") {
+      // 직접 알림 표시 대신 전역 에러 핸들러 사용
+      handleGlobalError(new UserFacingError("이미지 생성을 위해 프롬프트를 입력해주세요."));
+      return false;
     }
     
-    // Face Swap이 활성화되어 있고 얼굴 이미지가 있는 경우 최적화된 처리
-    if (useFaceSwap && faceImage) {
-      handleGenerationWithFaceSwap();
-    } else {
-      // 기존 이미지 생성 흐름
-      handleNormalGeneration();
+    // 모델 검사
+    const currentModelId = modelId || model;
+    if (!currentModelId) {
+      // 직접 알림 표시 대신 전역 에러 핸들러 사용
+      handleGlobalError(new UserFacingError("이미지 생성을 위해 AI 모델을 선택해주세요."));
+      return false;
+    }
+    
+    // 이미지 비율 검사
+    if (!size || size === "") {
+      // 직접 알림 표시 대신 전역 에러 핸들러 사용
+      handleGlobalError(new UserFacingError("이미지 생성을 위해 이미지 비율을 선택해주세요."));
+      return false;
+    }
+    
+    return true;
+  };
+
+  // 일반 모드 이미지 생성 핸들러
+  const handleNormalGeneration = async () => {
+    try {
+      setIsGenerating(true);
+      const apiUrl = "/api/generate";
+
+      // 중요한 검증
+      if (!textPrompt) {
+        const error = new UserFacingError("프롬프트를 입력해주세요");
+        handleGlobalError(error);
+        setIsGenerating(false);
+        return;
+      }
+
+      // API 요청 준비
+      const body = {
+        prompt: textPrompt,
+        negativePrompt,
+        modelId: modelId || model,
+        width: parseInt(size.split('x')[0]),
+        height: parseInt(size.split('x')[1]),
+        steps: Number(steps),
+        cfgScale: Number(cfgScale),
+        sampler: sampler,
+        vae: selectedVae,
+        saveMetadata: false // 메타데이터 저장 비활성화 (기본값)
+      };
+
+      // API 요청
+      const response = await fetch(apiUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(body),
+      });
+
+      // 응답 처리
+      if (!response.ok) {
+        const errorData = await response.json();
+        // 전역 에러 핸들러를 통해 에러 알림 표시
+        handleGlobalError(new UserFacingError(errorData.error || "이미지 생성 중 오류가 발생했습니다"));
+        throw new Error(errorData.error || "이미지 생성 중 오류가 발생했습니다");
+      }
+
+      const data = await response.json();
+      console.log("서버 응답 데이터:", data);
+      
+      if (!data.success) {
+        // 전역 에러 핸들러를 통해 에러 알림 표시
+        handleGlobalError(new UserFacingError(data.error || "이미지 생성에 실패했습니다"));
+        throw new Error(data.error || "이미지 생성에 실패했습니다");
+      }
+
+      // 이미지 URL 확인
+      if (!data.image || !data.image.url) {
+        // 전역 에러 핸들러를 통해 에러 알림 표시
+        handleGlobalError(new UserFacingError("유효한 이미지 URL이 반환되지 않았습니다"));
+        throw new Error("유효한 이미지 URL이 반환되지 않았습니다");
+      }
+
+      // 이미지 ID가 없는 경우 랜덤 ID 생성
+      const imageId = data.image.id || `temp-${Date.now()}`;
+      const tempImageUrl = data.image.url;
+      
+      // 이미지 URL 타입 검증
+      if (typeof tempImageUrl !== 'string') {
+        console.error("생성된 이미지 URL이 문자열이 아닙니다:", tempImageUrl);
+        // 전역 에러 핸들러를 통해 에러 알림 표시
+        handleGlobalError(new UserFacingError("생성된 이미지 URL이 유효하지 않습니다"));
+        throw new Error("생성된 이미지 URL이 유효하지 않습니다");
+      }
+      
+      console.log("생성된 임시 이미지 URL:", tempImageUrl);
+
+      // 성공 콜백 호출 (임시 URL 사용하여 즉시 표시)
+      onGenerationComplete(tempImageUrl, imageId);
+
+      // 생성 상태 초기화
+      setIsGenerating(false);
+
+      // 백그라운드에서 Cloudflare에 업로드 시작
+      uploadToPermanentStorage(tempImageUrl, imageId);
+      
+    } catch (error: any) {
+      console.error("이미지 생성 오류:", error);
+      
+      // 전역 에러 핸들러로 에러 전달 (이중 알림 방지 체크)
+      if (!(error instanceof UserFacingError)) {
+        handleGlobalError(error);
+      }
+      
+      setIsGenerating(false);
+    }
+  };
+
+  // 이미지를 영구 저장소에 업로드하는 함수 (백그라운드 처리)
+  const uploadToPermanentStorage = async (tempImageUrl: string, imageId: string) => {
+    try {
+      // 현재 이미지 크기 정보 추출 (크기 선택 값에서)
+      let width, height;
+      
+      if (size) {
+        const sizeParts = size.split('x');
+        width = parseInt(sizeParts[0], 10);
+        height = parseInt(sizeParts[1], 10);
+      }
+      
+      console.log("백그라운드에서 이미지 영구 저장 시작:", { 
+        imageId, 
+        tempUrl: tempImageUrl?.substring(0, 50) + "...",
+        size: size || "기본값(768x768)",
+        width, 
+        height
+      });
+      
+      // Cloudflare Images에 업로드하는 API 호출
+      const response = await fetch("/api/cloudflare-upload", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          imageUrl: tempImageUrl,
+          imageId: imageId,
+          width: width,
+          height: height
+        }),
+      });
+
+      if (!response.ok) {
+        console.error("Cloudflare 업로드 실패:", await response.text());
+        return;
+      }
+
+      const result = await response.json();
+      
+      if (!result.success || !result.url) {
+        console.error("Cloudflare 업로드 응답 오류:", result);
+        return;
+      }
+
+      console.log("이미지가 Cloudflare에 성공적으로 업로드됨:", {
+        id: result.id,
+        url: result.url?.substring(0, 50) + "..."
+      });
+      
+      // DB에 이미지 정보 저장
+      try {
+        const saveResponse = await fetch("/api/images/save", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            prompt: textPrompt,
+            fileUrl: result.url,
+            thumbnailUrl: result.thumbnailUrl || result.url,
+            modelId: selectedModel.id,
+            negativePrompt: negativePrompt,
+            width: width,
+            height: height,
+            settings: {
+              steps: steps,
+              cfgScale: cfgScale,
+              sampler: sampler,
+              vae: selectedVae
+            }
+          }),
+        });
+        
+        if (saveResponse.ok) {
+          const saveResult = await saveResponse.json();
+          console.log("이미지 정보가 DB에 저장됨:", saveResult.id);
+        } else {
+          console.error("DB 저장 실패:", await saveResponse.text());
+        }
+      } catch (dbError) {
+        console.error("DB 저장 중 오류 발생:", dbError);
+      }
+      
+    } catch (error: any) {
+      console.error("이미지 영구 저장 오류:", error);
     }
   };
   
-  // Face Swap을 적용한 이미지 생성 처리
+  // 영구 URL이 준비되었을 때 호출할 함수
+  const onPermanentUrlReady = (imageId: string, permanentUrl: string) => {
+    // 여기서는 상위 컴포넌트에 알리는 방식을 사용할 수 있습니다
+    // 또는 React Context를 통해 URL을 업데이트할 수도 있습니다
+    console.log("영구 URL 준비 완료:", { imageId, permanentUrl });
+    
+    // 예: 상위 컴포넌트에 알림 (props로 전달받은 함수를 사용)
+    // onUrlUpdate가 props로 제공된 경우 호출
+    if (typeof onUrlUpdate === 'function') {
+      onUrlUpdate(imageId, permanentUrl);
+    }
+  };
+
+  // Face Swap을 적용한 이미지 생성 처리 - 유사한 방식으로 수정
   const handleGenerationWithFaceSwap = async () => {
     try {
+      // 입력 유효성 검사
+      if (!validateInputs()) {
+        return;
+      }
+      
+      // Face Swap 이미지 검사
+      if (!faceImage || !faceImagePreview) {
+        // 직접 알림 표시 대신 전역 에러 핸들러 사용
+        handleGlobalError(new UserFacingError("Face Swap을 위해 얼굴 참조 이미지를 업로드해주세요."));
+        return;
+      }
+
       onGenerationStart();
       setIsGenerating(true);
       setLoadingState('generating');
@@ -494,23 +695,27 @@ export default function TextToImageForm({
       const faceImagePromise = faceImage ? uploadFaceImage(faceImage) : Promise.resolve(null);
       
       // 2. 이미지 생성 요청
+      const requestBody = {
+        prompt: textPrompt,
+        negativePrompt,
+        modelId: currentModelId,
+        width: parseInt(size.split('x')[0]),
+        height: parseInt(size.split('x')[1]),
+        steps,
+        cfgScale,
+        sampler,
+        vae: selectedVae,
+        loras: selectedLoras.length > 0 ? selectedLoras : undefined,
+      };
+      
+      console.log("Face Swap 이미지 생성 요청:", requestBody);
+      
       const response = await fetch("/api/generate", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          prompt: textPrompt,
-          negativePrompt,
-          modelId: currentModelId,
-          width: parseInt(size.split('x')[0]),
-          height: parseInt(size.split('x')[1]),
-          steps,
-          cfgScale,
-          sampler,
-          vae: selectedVae,
-          loras: selectedLoras.length > 0 ? selectedLoras : undefined,
-        }),
+        body: JSON.stringify(requestBody),
       });
       
       if (!response.ok) {
@@ -519,114 +724,61 @@ export default function TextToImageForm({
       }
       
       const result = await response.json();
-      console.log("이미지 생성 응답:", result);
+      console.log("Face Swap 이미지 생성 응답:", result);
       
-      // 임시 URL 유효성 검사
-      const generatedImageUrl = extractImageUrl(result);
-      if (!generatedImageUrl) {
-        throw new Error("이미지 생성에 실패했습니다. 유효한 URL이 반환되지 않았습니다.");
+      // 이미지 URL 확인 및 추출
+      if (!result.success || !result.image || !result.image.url) {
+        throw new Error("이미지 생성에 실패했습니다. 서버 응답이 유효하지 않습니다.");
       }
       
-      // 이미지 ID 추출
-      let imageId = '';
-      if (result.image && result.image.id) {
-        imageId = String(result.image.id);
-      } else if (result.id) {
-        imageId = String(result.id);
-      } else {
-        imageId = String(Date.now());
+      const tempImageUrl = result.image.url;
+      const imageId = result.image.id || `temp-${Date.now()}`;
+      
+      // 이미지 URL 타입 검증
+      if (typeof tempImageUrl !== 'string') {
+        console.error("생성된 이미지 URL이 문자열이 아닙니다:", tempImageUrl);
+        throw new Error("생성된 이미지 URL이 유효하지 않습니다.");
       }
+      
+      console.log("생성된 Face Swap 임시 이미지 정보:", { imageId, imageUrl: tempImageUrl });
       
       // 3. 얼굴 이미지 base64 데이터 대기
       const faceImageData = await faceImagePromise;
       
       // 얼굴 이미지가 없다면 생성된 이미지만 반환
       if (!faceImageData) {
-        onGenerationComplete(generatedImageUrl, imageId);
+        onGenerationComplete(tempImageUrl, imageId);
         setIsGenerating(false);
         setLoadingState('idle');
+        
+        // 백그라운드에서 Cloudflare에 업로드
+        uploadToPermanentStorage(tempImageUrl, imageId);
         return;
       }
       
       // 4. Face Swap 적용 (base64 데이터 직접 사용)
       console.log("Face Swap 적용 시작...");
       setLoadingState('saving');
-      const swappedImageUrl = await applyFaceSwap(generatedImageUrl, faceImageData);
+      const swappedImageUrl = await applyFaceSwap(tempImageUrl, faceImageData);
       
-      // 5. 결과 처리
+      // 5. 결과 처리 - 임시 URL로 표시
       onGenerationComplete(swappedImageUrl, imageId);
       
-    } catch (error: any) {
-      console.error("이미지 생성 오류:", error);
-      onError(error.message || "이미지 생성 중 오류가 발생했습니다.");
-    } finally {
+      // 생성 상태 초기화
       setIsGenerating(false);
       setLoadingState('idle');
-    }
-  };
-  
-  // 기존 이미지 생성 처리 (Face Swap 없음)
-  const handleNormalGeneration = async () => {
-    try {
-      onGenerationStart();
-      setIsGenerating(true);
-      setLoadingState('generating');
       
-      // 현재 선택된 모델 ID 가져오기
-      const currentModelId = modelId || model;
-      
-      // API 요청 준비
-      const response = await fetch("/api/generate", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          prompt: textPrompt,
-          negativePrompt,
-          modelId: currentModelId,
-          width: parseInt(size.split('x')[0]),
-          height: parseInt(size.split('x')[1]),
-          steps,
-          cfgScale,
-          sampler,
-          vae: selectedVae,
-          loras: selectedLoras.length > 0 ? selectedLoras : undefined,
-        }),
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => null);
-        throw new Error(errorData?.error || `API 오류: ${response.status}`);
-      }
-      
-      const result = await response.json();
-      
-      console.log("이미지 생성 응답:", result);
-      
-      // 임시 URL 유효성 검사
-      const imageUrl = extractImageUrl(result);
-      if (!imageUrl) {
-        throw new Error("이미지 생성에 실패했습니다. 유효한 URL이 반환되지 않았습니다.");
-      }
-      
-      // 이미지 ID 추출
-      let imageId = '';
-      if (result.image && result.image.id) {
-        imageId = String(result.image.id);
-      } else if (result.id) {
-        imageId = String(result.id);
-      } else {
-        imageId = String(Date.now());
-      }
-      
-      // 생성 완료 콜백 호출
-      onGenerationComplete(imageUrl, imageId);
+      // 백그라운드에서 Cloudflare에 업로드
+      uploadToPermanentStorage(swappedImageUrl, imageId);
       
     } catch (error: any) {
       console.error("이미지 생성 오류:", error);
-      onError(error.message || "이미지 생성 중 오류가 발생했습니다.");
-    } finally {
+      // 중복 알림 방지를 위해 showNotification 호출 제거
+      // 전역 에러 핸들러를 통해 에러 알림 표시
+      if (!(error instanceof UserFacingError)) {
+        handleGlobalError(error instanceof Error ? error : new Error(error.message || "이미지 생성 중 오류가 발생했습니다."));
+      }
+      
       setIsGenerating(false);
       setLoadingState('idle');
     }
@@ -739,6 +891,31 @@ export default function TextToImageForm({
       
       default:
         return null;
+    }
+  };
+
+  // 이미지 생성 요청 제출 핸들러
+  const handleFormSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    // 입력 유효성 검사
+    if (!validateInputs()) {
+      return;
+    }
+    
+    // Face Swap이 활성화되어 있고 얼굴 이미지가 있는 경우
+    if (useFaceSwap && faceImage) {
+      // Face Swap 이미지 검사
+      if (!faceImage || !faceImagePreview) {
+        handleGlobalError(new UserFacingError("Face Swap을 위해 얼굴 참조 이미지를 업로드해주세요."));
+        return;
+      }
+      
+      handleGenerationWithFaceSwap();
+    } else {
+      // 일반 이미지 생성
+      handleNormalGeneration();
     }
   };
 
@@ -952,7 +1129,7 @@ export default function TextToImageForm({
               className="w-full bg-neutral-800 rounded-lg p-2 text-sm"
             >
               {SAMPLER_OPTIONS.map((samplerOption) => (
-                <option key={`sampler-${samplerOption.id}`} value={samplerOption.id} title={samplerOption.description}>
+                <option key={`sampler-${samplerOption.id}`} value={samplerOption.id}>
                   {samplerOption.name}
                 </option>
               ))}
@@ -1014,11 +1191,7 @@ export default function TextToImageForm({
             </>
           ) : (
             <>
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M4 5a2 2 0 00-2 2v8a2 2 0 002 2h12a2 2 0 002-2V7a2 2 0 00-2-2h-1.586a1 1 0 01-.707-.293l-1.121-1.121A2 2 0 0011.172 3H8.828a2 2 0 00-1.414.586L6.293 4.707A1 1 0 015.586 5H4z" />
-                <path fillRule="evenodd" d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
-              </svg>
-              <span>{useFaceSwap && faceImage ? '이미지 생성 및 Face Swap 적용' : '이미지 생성하기'}</span>
+              <span>이미지 생성</span>
             </>
           )}
         </button>

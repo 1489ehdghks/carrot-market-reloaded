@@ -10,9 +10,8 @@ import {
   ChatBubbleBottomCenterTextIcon,
   XMarkIcon,
   Bars3Icon,
-  WindowIcon,
   PhotoIcon,
-  DocumentTextIcon
+  ArrowDownTrayIcon,
 } from "@heroicons/react/24/outline"
 import { useState, useEffect, useRef } from "react"
 import Link from "next/link"
@@ -170,22 +169,38 @@ function RecentAIImages() {
       toast.error("이미지 설정을 불러올 수 없습니다");
       return;
     }
+
+    // 이미지 상세 페이지로 이동합니다.
+    router.push(`/image/${image.id}`);
+  };
+
+  // 이미지를 다운로드하는 함수
+  const handleImageDownload = async (image: AIImage, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation(); // 상위 요소의 클릭 이벤트(handleImageClick) 실행 방지
     
-    // 이미지 생성 설정을 로컬 스토리지에 저장
-    if (image.settings.prompt) localStorage.setItem('textPrompt', image.settings.prompt);
-    if (image.settings.negativePrompt) localStorage.setItem('negativePrompt', image.settings.negativePrompt);
-    if (image.settings.size) localStorage.setItem('size', image.settings.size);
-    if (image.settings.model) localStorage.setItem('model', image.settings.model);
-    if (image.settings.steps) localStorage.setItem('steps', image.settings.steps.toString());
-    if (image.settings.cfgScale) localStorage.setItem('cfgScale', image.settings.cfgScale.toString());
-    if (image.settings.sampler) localStorage.setItem('sampler', image.settings.sampler);
-    if (image.settings.vae) localStorage.setItem('vae', image.settings.vae);
-    
-    // 토스트 메시지 표시
-    toast.success("이미지 설정이 적용되었습니다");
-    
-    // 이미지 생성 페이지로 이동
-    router.push('/image');
+    try {
+      // 이미지 URL에서 파일 다운로드
+      const response = await fetch(image.fileUrl);
+      const blob = await response.blob();
+      
+      // 다운로드 링크 생성
+      const downloadUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = downloadUrl;
+      a.download = `${image.title || 'ai-image'}.png`;
+      document.body.appendChild(a);
+      a.click();
+      
+      // 리소스 정리
+      document.body.removeChild(a);
+      URL.revokeObjectURL(downloadUrl);
+      
+      toast.success("이미지가 다운로드되었습니다");
+    } catch (error) {
+      console.error("이미지 다운로드 오류:", error);
+      toast.error("이미지 다운로드에 실패했습니다");
+    }
   };
 
   return (
@@ -223,22 +238,41 @@ function RecentAIImages() {
           ) : (
             // 이미지 목록 표시
             recentImages.map((image) => (
-              <Tooltip key={image.id} content={`${image.title} - 클릭하여 설정 적용`}>
+              <Tooltip key={image.id} content={`${image.title} - 클릭하여 상세 보기`}>
                 <div 
-                  onClick={(e) => handleImageClick(image, e)}
                   className="block relative aspect-square rounded-lg overflow-hidden group cursor-pointer"
                 >
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex flex-col justify-end p-2">
-                    <span className="text-xs text-white truncate">{image.title}</span>
-                    <span className="text-[10px] text-neutral-400">{image.createdAt}</span>
+                  <div 
+                    onClick={(e) => handleImageClick(image, e)}
+                    className="absolute inset-0 w-full h-full"
+                  >
+                    <Image 
+                      src={image.fileUrl} 
+                      alt={image.title}
+                      className="object-cover transform group-hover:scale-105 transition-transform duration-200"
+                      fill
+                      sizes="(max-width: 768px) 50vw, 25vw"
+                    />
                   </div>
-                  <Image 
-                    src={image.fileUrl} 
-                    alt={image.title}
-                    className="object-cover transform group-hover:scale-105 transition-transform duration-200"
-                    fill
-                    sizes="(max-width: 768px) 50vw, 25vw"
-                  />
+
+                  {/* 이미지 호버 시 정보 및 액션 버튼 표시 */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex flex-col justify-end p-2">
+                    <div className="flex justify-between items-end">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs text-white truncate">{image.title}</p>
+                        <p className="text-[10px] text-neutral-400">{image.createdAt}</p>
+                      </div>
+                      
+                      {/* 다운로드 버튼 */}
+                      <button
+                        onClick={(e) => handleImageDownload(image, e)}
+                        className="ml-1 p-1 rounded-full bg-neutral-800/70 hover:bg-neutral-700 text-white transition-colors"
+                        title="이미지 다운로드"
+                      >
+                        <ArrowDownTrayIcon className="w-3 h-3" />
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </Tooltip>
             ))

@@ -24,6 +24,62 @@ export class SystemError extends Error {
   }
 }
 
+// 전역 에러 처리 상태 관리를 위한 이벤트 기반 시스템
+type ErrorListener = (error: UserFacingError | SystemError | Error) => void;
+const errorListeners: ErrorListener[] = [];
+
+/**
+ * 전역 에러 처리기 등록
+ * @param listener 에러 처리할 콜백 함수
+ * @returns 리스너 제거 함수
+ */
+export function registerErrorHandler(listener: ErrorListener): () => void {
+  errorListeners.push(listener);
+  return () => {
+    const index = errorListeners.indexOf(listener);
+    if (index !== -1) {
+      errorListeners.splice(index, 1);
+    }
+  };
+}
+
+/**
+ * 전역 에러 발생 함수
+ * @param error 에러 객체
+ */
+export function handleGlobalError(error: UserFacingError | SystemError | Error | unknown): void {
+  // 에러 객체 정규화
+  let normalizedError: Error;
+  
+  if (error instanceof Error) {
+    normalizedError = error;
+  } else if (typeof error === 'string') {
+    normalizedError = new Error(error);
+  } else {
+    try {
+      normalizedError = new Error(JSON.stringify(error));
+    } catch {
+      normalizedError = new Error('Unknown error occurred');
+    }
+  }
+  
+  // 로깅
+  if (normalizedError instanceof SystemError) {
+    logSystemError(normalizedError, 'GlobalErrorHandler');
+  } else {
+    console.error('[GLOBAL_ERROR]', normalizedError);
+  }
+  
+  // 모든 리스너에게 에러 전파
+  for (const listener of errorListeners) {
+    try {
+      listener(normalizedError);
+    } catch (listenerError) {
+      console.error('Error in error listener:', listenerError);
+    }
+  }
+}
+
 /**
  * Replicate API 에러 메시지 파싱
  * @param errorText API 응답 텍스트 또는 에러 객체
@@ -108,6 +164,23 @@ export function parseReplicateError(errorText: string | any): string {
     return errorText;
   }
 
+  // 스택 오버플로우 에러
+  if (
+    lowerCaseError.includes('maximum call stack size exceeded') ||
+    lowerCaseError.includes('stack overflow') ||
+    lowerCaseError.includes('stack size exceeded')
+  ) {
+    return "이미지 처리 중 메모리 문제가 발생했습니다. 이미지 크기를 줄이거나 다른 모델을 사용해보세요.";
+  }
+
+  // 스트림 처리 에러
+  if (
+    lowerCaseError.includes('stream') ||
+    lowerCaseError.includes('readablestream')
+  ) {
+    return "이미지 데이터 스트림 처리 중 오류가 발생했습니다. 다시 시도해주세요.";
+  }
+
   // 기본 에러 메시지
   return "이미지 생성 중 오류가 발생했습니다. 다시 시도해주세요.";
 }
@@ -140,11 +213,16 @@ export async function extractErrorFromResponse(response: Response): Promise<User
         errorMessage.toLowerCase().includes('adult') ||
         errorMessage.toLowerCase().includes('inappropriate')
       )) {
-        return new UserFacingError(parseReplicateError(errorMessage));
+        const userError = new UserFacingError(parseReplicateError(errorMessage));
+        // 전역 에러 핸들러 호출
+        handleGlobalError(userError);
+        return userError;
       }
       
       // 기본적으로 시스템 에러로 처리
-      return new SystemError(`API 오류: ${response.status}`, errorData);
+      const systemError = new SystemError(`API 오류: ${response.status}`, errorData);
+      handleGlobalError(systemError);
+      return systemError;
     }
     
     // 텍스트 응답 처리
@@ -159,24 +237,34 @@ export async function extractErrorFromResponse(response: Response): Promise<User
         message.toLowerCase().includes('nsfw') || 
         message.toLowerCase().includes('adult')
       )) {
-        return new UserFacingError(parseReplicateError(message));
+        const userError = new UserFacingError(parseReplicateError(message));
+        handleGlobalError(userError);
+        return userError;
       }
       
-      return new SystemError(`API 오류: ${response.status}`, jsonData);
+      const systemError = new SystemError(`API 오류: ${response.status}`, jsonData);
+      handleGlobalError(systemError);
+      return systemError;
     } catch {
       // 일반 텍스트인 경우
       if (
         errorText.toLowerCase().includes('nsfw') || 
         errorText.toLowerCase().includes('adult')
       ) {
-        return new UserFacingError(parseReplicateError(errorText));
+        const userError = new UserFacingError(parseReplicateError(errorText));
+        handleGlobalError(userError);
+        return userError;
       }
       
-      return new SystemError(`API 오류: ${response.status}`, { text: errorText });
+      const systemError = new SystemError(`API 오류: ${response.status}`, { text: errorText });
+      handleGlobalError(systemError);
+      return systemError;
     }
   } catch (error) {
     // 예외 발생 시 기본 에러 반환
-    return new SystemError(`응답 파싱 실패: ${response.status}`, error);
+    const systemError = new SystemError(`응답 파싱 실패: ${response.status}`, error);
+    handleGlobalError(systemError);
+    return systemError;
   }
 }
 

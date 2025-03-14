@@ -1,90 +1,104 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { getSession } from "@/lib/auth";
-import { formatToTimeAgo } from "@/lib/utils";
+import { getImageSession } from "@/app/lib/imageSessionService"; // 이미지 서비스용 세션 사용
+
+
+// Cloudflare 이미지 URL에서 최적의 변형자를 선택하는 함수
+function selectBestVariant(fileUrl: string, width: number, height: number): string {
+  if (!fileUrl) return '';
+  
+  // 기본 URL에서 변형자가 있다면 제거
+  const baseUrl = fileUrl.split('/').slice(0, -1).join('/');
+  
+  // 이미지 크기에 따라 최적의 변형자 선택
+  const SMALL_IMAGE_THRESHOLD = 400; // 400px 이하면 작은 이미지로 간주
+  
+  // 작은 이미지면 public 사용
+  if (width <= SMALL_IMAGE_THRESHOLD && height <= SMALL_IMAGE_THRESHOLD) {
+    return `${baseUrl}/public`;
+  }
+  
+  // 가로가 더 긴 이미지는 width 변형자 사용
+  if (width > height) {
+    return `${baseUrl}/width`;
+  } 
+  // 세로가 더 긴 이미지는 height 변형자 사용
+  else if (height > width) {
+    return `${baseUrl}/height`;
+  }
+  
+  // 기본값: normal 변형자
+  return `${baseUrl}/normal`;
+}
 
 /**
- * 사용자가 최근에 생성한 AI 이미지를 가져오는 API
- * 페이지네이션을 지원하며 page와 limit 쿼리 파라미터를 받습니다.
- *
- * @param req - Next.js 요청 객체
- * @returns 최근 생성된 AI 이미지 목록
+ * 사용자의 최근 생성한 이미지 목록을 가져오는 API 엔드포인트
+ * 
+ * 쿼리 파라미터:
+ * - limit: 가져올 최대 이미지 수 (기본값: 10)
+ * - public: 공개 이미지만 가져올지 여부 (기본값: false)
+ * 
+ * 응답:
+ * - images: 이미지 배열
+ * - success: 성공 여부
  */
-export async function GET(req: Request) {
+export async function GET(request: NextRequest) {
   try {
-    // 세션 정보 가져오기
-    const session = await getSession();
-    
-    if (!session || !session.id) {
-      return NextResponse.json({ error: "인증되지 않은 사용자입니다" }, { status: 401 });
+    // 세션 확인
+    const session = await getImageSession();
+    if (!session?.id) {
+      return NextResponse.json(
+        { success: false, error: "로그인이 필요합니다" },
+        { status: 401 }
+      );
     }
     
-    // URL 쿼리 파라미터 파싱
-    const url = new URL(req.url);
-    const pageParam = url.searchParams.get('page') || '1';
-    const limitParam = url.searchParams.get('limit') || '10';
+    // userId는 number 타입이어야 함 (schema.prisma 기준)
+    const userId = typeof session.id === 'number' ? session.id : parseInt(String(session.id), 10);
     
-    // 페이지네이션 파라미터 변환
-    const page = parseInt(pageParam, 10);
-    const limit = parseInt(limitParam, 10);
-    const skip = (page - 1) * limit;
+    // 쿼리 파라미터 가져오기
+    const { searchParams } = new URL(request.url);
+    const limitParam = searchParams.get("limit");
+    const publicOnly = searchParams.get("public") === "true";
     
-    // 유효성 검사
-    if (isNaN(page) || isNaN(limit) || page < 1 || limit < 1 || limit > 20) {
-      return NextResponse.json({ error: "잘못된 페이지 또는 한계값입니다" }, { status: 400 });
-    }
+    // 파라미터 유효성 검사 및 기본값 설정
+    const limit = limitParam ? parseInt(limitParam) : 10;
     
-    // 최근 생성된 이미지 조회
-    const recentAIImages = await db.aIImage.findMany({
+    // 최근 이미지 조회
+    const images = await db.aIImage.findMany({
       where: {
-        userId: session.id, // 자신의 이미지만 조회
-        isPermanent: true, // 영구 저장된 이미지만
-      },
-      select: {
-        id: true,
-        title: true,
-        fileUrl: true,
-        created_at: true,
-        prompt: true,
-        negativePrompt: true,
-        model: true,
-        width: true,
-        height: true,
-        steps: true,
-        cfgScale: true,
-        sampler: true,
-        vae: true
+        userId: userId, // session.id 대신 변환된 userId 사용
+        ...(publicOnly ? { isPublic: true } : {})
       },
       orderBy: {
         created_at: "desc"
       },
-      skip,
-      take: limit
+      take: limit,
+      select: {
+        id: true,
+        title: true,
+        thumbnailUrl: true,
+        fileUrl: true,
+        created_at: true,
+        width: true,
+        height: true,
+        isPublic: true
+      }
     });
     
-    // 응답 데이터 포맷팅
-    const formattedImages = recentAIImages.map(image => ({
-      id: image.id,
-      title: image.title || "제목 없음",
-      fileUrl: image.fileUrl,
-      createdAt: formatToTimeAgo(image.created_at),
-      // 이미지 생성 설정 정보 추가
-      settings: {
-        prompt: image.prompt,
-        negativePrompt: image.negativePrompt || "",
-        model: image.model,
-        size: `${image.width}x${image.height}`,
-        steps: image.steps || 30,
-        cfgScale: image.cfgScale || 7.0,
-        sampler: image.sampler || "default",
-        vae: image.vae || "default"
-      }
-    }));
+    // 성공 응답
+    return NextResponse.json({
+      success: true,
+      images
+    });
     
-    return NextResponse.json(formattedImages);
   } catch (error) {
-    console.error("[최근_AI이미지_조회_오류]:", error);
-    return NextResponse.json({ error: "최근 이미지를 불러오는데 실패했습니다" }, { status: 500 });
+    console.error("최근 이미지 조회 중 오류:", error);
+    
+    return NextResponse.json(
+      { success: false, error: "이미지 목록 조회 중 오류가 발생했습니다" },
+      { status: 500 }
+    );
   }
 }
 

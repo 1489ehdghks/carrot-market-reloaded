@@ -26,6 +26,15 @@ export default function ImageClient() {
     setIsGenerating(false);
   };
   
+  const handleUrlUpdate = (imageId: string, permanentUrl: string) => {
+    console.log("영구 URL로 업데이트:", { imageId, permanentUrl });
+    
+    if (imageId === generatedImageId) {
+      setGeneratedImageUrl(permanentUrl);
+      console.log("이미지 URL이 영구 URL로 업데이트되었습니다:", permanentUrl);
+    }
+  };
+  
   const handleResetImage = () => {
     setGeneratedImageUrl(null);
     setGeneratedImageId(null);
@@ -38,6 +47,7 @@ export default function ImageClient() {
           onGenerationStart={handleGenerationStart}
           onGenerationComplete={handleGenerationComplete}
           onError={handleGenerationError}
+          onUrlUpdate={handleUrlUpdate}
         />
       </div>
       

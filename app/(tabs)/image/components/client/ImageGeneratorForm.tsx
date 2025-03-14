@@ -22,28 +22,6 @@ interface ImageGeneratorFormProps {
   }) => Promise<any>;
 }
 
-// 샘플러 옵션 목록
-const SAMPLERS = [
-  { value: 'DPM++ 2M Karras', label: 'DPM++ 2M Karras (권장)' },
-  { value: 'DPM++ SDE Karras', label: 'DPM++ SDE Karras' },
-  { value: 'DPM++ 2M SDE', label: 'DPM++ 2M SDE' },
-  { value: 'Euler a', label: 'Euler a' },
-  { value: 'Euler', label: 'Euler' },
-  { value: 'LMS', label: 'LMS' },
-  { value: 'Heun', label: 'Heun' },
-  { value: 'DPM2', label: 'DPM2' },
-  { value: 'DPM2 a', label: 'DPM2 a' },
-  { value: 'DPM++ 2S a', label: 'DPM++ 2S a' },
-  { value: 'DPM++ 2M', label: 'DPM++ 2M' },
-  { value: 'DPM fast', label: 'DPM fast' },
-  { value: 'DPM adaptive', label: 'DPM adaptive' },
-  { value: 'LMS Karras', label: 'LMS Karras' },
-  { value: 'DPM2 Karras', label: 'DPM2 Karras' },
-  { value: 'DPM2 a Karras', label: 'DPM2 a Karras' },
-  { value: 'DDIM', label: 'DDIM' },
-  { value: 'PLMS', label: 'PLMS' },
-  { value: 'UniPC', label: 'UniPC' }
-];
 
 // VAE 옵션 목록
 const VAE_OPTIONS = [
@@ -76,7 +54,7 @@ export function ImageGeneratorForm({ models, onGenerate }: ImageGeneratorFormPro
     height: 768,
     steps: 30,
     cfgScale: 7,
-    sampler: SAMPLERS[0].value,
+    sampler: '',
     vae: VAE_OPTIONS[1].value
   };
   
@@ -506,21 +484,6 @@ export function ImageGeneratorForm({ models, onGenerate }: ImageGeneratorFormPro
         />
       </div>
       
-      {/* 샘플러 선택 */}
-      <div>
-        <label className="block text-sm font-medium mb-1">샘플러</label>
-        <Select
-          name="sampler"
-          value={formState.sampler}
-          onValueChange={(value) => setFormState(prev => ({ ...prev, sampler: value }))}
-        >
-          {SAMPLERS.map(sampler => (
-            <option key={sampler.value} value={sampler.value}>
-              {sampler.label}
-            </option>
-          ))}
-        </Select>
-      </div>
       
       {/* VAE 선택 */}
       <div>

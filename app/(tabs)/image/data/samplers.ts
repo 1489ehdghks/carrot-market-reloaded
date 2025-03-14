@@ -2,23 +2,28 @@
 export interface SamplerOption {
   id: string;
   name: string;
-  description: string;
 }
 
 // 샘플러 데이터 - ID, 이름, 설명 포함
 export const SAMPLER_OPTIONS: SamplerOption[] = [
-  { id: 'DPM++ 2M Karras', name: 'DPM++ 2M Karras (권장)', description: '대부분의 이미지에 좋은 결과를 제공하는 빠른 샘플러' },
-  { id: 'DPM++ SDE Karras', name: 'DPM++ SDE Karras', description: '더 높은 품질의 디테일을 제공하지만 처리 시간이 더 걸림' },
-  { id: 'Euler a', name: 'Euler a', description: '빠른 생성 속도, 창의적인 결과물' },
-  { id: 'Euler', name: 'Euler', description: '기본적인 샘플러, 빠른 속도' },
-  { id: 'Heun', name: 'Heun', description: '높은 품질의 이미지 생성, 느린 처리 속도' },
-  { id: 'DPM++ 2S a', name: 'DPM++ 2S a', description: '향상된 디테일 처리' },
-  { id: 'DPM++ 2M', name: 'DPM++ 2M', description: '균형 잡힌 결과' },
-  { id: 'DPM++ SDE', name: 'DPM++ SDE', description: '세밀한 디테일과 질감 표현에 좋음' },
-  { id: 'DPM2 Karras', name: 'DPM2 Karras', description: 'Karras 스케줄링이 적용된 DPM2' },
-  { id: 'DPM2 a Karras', name: 'DPM2 a Karras', description: 'Karras 스케줄링이 적용된 DPM2 a' },
-  { id: 'DPM++ 2S a Karras', name: 'DPM++ 2S a Karras', description: 'Karras 스케줄링이 적용된 DPM++ 2S a' },
-  { id: 'UniPC', name: 'UniPC', description: '최신 샘플러, 빠른 속도와 높은 품질' },
+  { id: 'DPM++ 2M Karras', name: 'DPM++ 2M Karras (권장)'},
+  { id: 'DPM++ SDE Karras', name: 'DPM++ SDE Karras'},
+  { id: 'Euler a', name: 'Euler a'},
+  { id: 'Euler', name: 'Euler'},
+  { id: 'DPM++ 2M SDE Karras', name: 'DPM++ 2M SDE Karras' },
+  { id: 'DPM2 a', name: 'DPM2 a'},
+  { id: 'DPM SDE', name: 'DPM SDE'},
+  { id: 'DDPM', name: 'DDPM'},
+  { id: 'DPM++ SDE', name: 'DPM++ SDE'},
+  { id: 'LMS', name: 'LMS'},
+  { id: 'LMS Karras', name: 'LMS Karras'},
+  { id: 'PNDM', name: 'PNDM'},
+  { id: 'DPM2', name: 'DPM2'},
+  { id: 'DPM2 Karras', name: 'DPM2 Karras'},
+  { id: 'DEIS', name: 'DEIS',},
+  { id: 'DPM++ 2M', name: 'DPM++ 2M'},
+  { id: 'DPM++ 2M SDE', name: 'DPM++ 2M SDE'},
+  { id: 'K_EULER_ANCESTRAL', name: 'K_EULER_ANCESTRAL' },
 ];
 
 // 샘플러 ID만 포함한 배열 (이전 코드와의 호환성 유지)
@@ -32,23 +37,25 @@ export function getSamplers(): string[] {
 }
 
 /**
- * 모든 샘플러 옵션 목록을 반환합니다.
+ * 모든 샘플러 옵션(ID, 이름, 설명 포함)을 반환합니다.
  */
 export function getSamplerOptions(): SamplerOption[] {
   return SAMPLER_OPTIONS;
 }
 
 /**
- * 기본 샘플러를 반환합니다.
+ * 기본 샘플러 ID를 반환합니다.
  */
 export function getDefaultSampler(): string {
-  return 'DPM++ 2M Karras';
+  // 새로운 DPM++ 2M Karras를 기본값으로 사용
+  return "DPM++ 2M Karras";
 }
 
 /**
- * ID로 샘플러 옵션을 찾아 반환합니다.
- * @param id 샘플러 ID
+ * 지정된 ID를 가진 샘플러 옵션을 찾아 반환합니다.
+ * @param id 찾을 샘플러 ID
+ * @returns 해당 ID의 샘플러 옵션 또는 undefined
  */
 export function getSamplerById(id: string): SamplerOption | undefined {
-  return SAMPLER_OPTIONS.find(sampler => sampler.id === id);
+  return SAMPLER_OPTIONS.find(option => option.id === id);
 } 

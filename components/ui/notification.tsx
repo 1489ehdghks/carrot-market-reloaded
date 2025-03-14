@@ -13,48 +13,49 @@ export interface NotificationProps {
   message?: string;
   duration?: number; // 밀리초 단위, 0이면 수동으로 닫을 때까지 유지
   onClose?: () => void;
-  position?: 'top-right' | 'top-left' | 'bottom-right' | 'bottom-left' | 'top-center' | 'bottom-center';
+  position?: 'center' | 'top-right' | 'top-left' | 'bottom-right' | 'bottom-left' | 'top-center' | 'bottom-center';
   className?: string;
 }
 
 const typeConfig = {
   success: {
     icon: CheckCircle,
-    bgColor: 'bg-green-50 dark:bg-green-950',
+    bgColor: 'bg-green-50 dark:bg-green-900',
     borderColor: 'border-green-500',
-    textColor: 'text-green-800 dark:text-green-300',
+    textColor: 'text-green-800 dark:text-green-200',
     iconColor: 'text-green-500'
   },
   error: {
     icon: XCircle,
-    bgColor: 'bg-red-50 dark:bg-red-950',
+    bgColor: 'bg-red-50 dark:bg-red-900',
     borderColor: 'border-red-500',
-    textColor: 'text-red-800 dark:text-red-300',
+    textColor: 'text-red-800 dark:text-red-200',
     iconColor: 'text-red-500'
   },
   warning: {
     icon: AlertCircle,
-    bgColor: 'bg-yellow-50 dark:bg-yellow-950',
+    bgColor: 'bg-yellow-50 dark:bg-yellow-900',
     borderColor: 'border-yellow-500',
-    textColor: 'text-yellow-800 dark:text-yellow-300',
+    textColor: 'text-yellow-800 dark:text-yellow-200',
     iconColor: 'text-yellow-500'
   },
   info: {
     icon: Info,
-    bgColor: 'bg-blue-50 dark:bg-blue-950',
+    bgColor: 'bg-blue-50 dark:bg-blue-900',
     borderColor: 'border-blue-500',
-    textColor: 'text-blue-800 dark:text-blue-300',
+    textColor: 'text-blue-800 dark:text-blue-200',
     iconColor: 'text-blue-500'
   }
 };
 
 const positionStyles = {
-  'top-right': 'top-4 right-4',
-  'top-left': 'top-4 left-4',
-  'bottom-right': 'bottom-4 right-4',
-  'bottom-left': 'bottom-4 left-4',
-  'top-center': 'top-4 left-1/2 -translate-x-1/2',
-  'bottom-center': 'bottom-4 left-1/2 -translate-x-1/2'
+  'center': 'fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 mx-auto w-[90%] sm:w-auto',
+  'top-right': 'fixed top-4 right-4',
+  'top-left': 'fixed top-4 left-4',
+  'bottom-right': 'fixed bottom-4 right-4',
+  'bottom-left': 'fixed bottom-4 left-4',
+  'top-center': 'fixed top-4 left-1/2 transform -translate-x-1/2 mx-auto w-[90%] sm:w-auto',
+  'bottom-center': 'fixed bottom-4 left-1/2 transform -translate-x-1/2 mx-auto w-[90%] sm:w-auto'
 };
 
 export const Notification = ({
@@ -63,10 +64,11 @@ export const Notification = ({
   message,
   duration = 5000, // 기본 5초
   onClose,
-  position = 'top-right',
+  position = 'center', // 기본값을 center로 변경
   className
 }: NotificationProps) => {
   const [isVisible, setIsVisible] = useState(true);
+  const [isFading, setIsFading] = useState(false);
   const config = typeConfig[type];
   const IconComponent = config.icon;
 
@@ -75,24 +77,23 @@ export const Notification = ({
     
     if (duration > 0) {
       timer = setTimeout(() => {
+        // 페이드 아웃 없이 바로 제거
         setIsVisible(false);
+        if (onClose) {
+          onClose();
+        }
       }, duration);
     }
     
     return () => {
       if (timer) clearTimeout(timer);
     };
-  }, [duration]);
+  }, [duration, onClose]);
 
   const handleClose = () => {
+    // 즉시 알림 닫기 (애니메이션 없음)
     setIsVisible(false);
     if (onClose) {
-      onClose();
-    }
-  };
-
-  const handleAnimationComplete = () => {
-    if (!isVisible && onClose) {
       onClose();
     }
   };
@@ -100,50 +101,65 @@ export const Notification = ({
   return (
     <AnimatePresence>
       {isVisible && (
-        <motion.div
-          className={cn(
-            'fixed z-50 max-w-md w-full transform-gpu',
-            positionStyles[position],
-            className
+        <>
+          {/* 배경 오버레이 (center 위치일 때만) */}
+          {position === 'center' && (
+            <motion.div
+              className="fixed inset-0 bg-black z-50"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 0.5 }}
+              // exit 애니메이션 제거
+              exit={{ opacity: 0, transition: { duration: 0 } }}
+            />
           )}
-          initial={{ opacity: 0, y: position.includes('top') ? -50 : 50, scale: 0.95 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          exit={{ opacity: 0, y: position.includes('top') ? -50 : 50, scale: 0.9 }}
-          transition={{ 
-            duration: 0.3,
-            type: "spring",
-            stiffness: 300,
-            damping: 25
-          }}
-          onAnimationComplete={handleAnimationComplete}
-        >
-          <div 
+          
+          {/* 알림 컴포넌트 */}
+          <motion.div
             className={cn(
-              'flex items-start p-5 rounded-lg shadow-xl border-l-4',
-              config.bgColor,
-              config.borderColor,
-              'backdrop-blur-sm'
+              'z-50',
+              positionStyles[position],
+              position === 'center' ? '!left-1/2 !transform !-translate-x-1/2' : '',
+              className
             )}
+            style={{
+              maxWidth: position.includes('center') ? '90%' : '24rem', // max-w-md 대체
+              margin: '0 auto'
+            }}
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            // exit 애니메이션 제거
+            exit={{ opacity: 0, transition: { duration: 0 } }}
           >
-            <div className={cn('flex-shrink-0 mr-4 mt-0.5', config.iconColor)}>
-              <IconComponent size={24} className="animate-pulse" />
-            </div>
-            <div className="flex-grow">
-              <h3 className={cn('font-bold text-lg', config.textColor)}>{title}</h3>
-              {message && (
-                <p className={cn('text-sm mt-1 whitespace-pre-line', config.textColor)}>
-                  {message}
-                </p>
+            <div 
+              className={cn(
+                'flex items-start p-4 sm:p-6 rounded-lg shadow-2xl border-l-4',
+                config.bgColor,
+                config.borderColor,
+                'backdrop-blur-lg',
+                'opacity-100',
+                position === 'center' ? 'min-w-0 sm:min-w-[320px]' : ''
               )}
-            </div>
-            <button 
-              onClick={handleClose}
-              className="flex-shrink-0 ml-3 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition hover:rotate-90"
             >
-              <X size={18} />
-            </button>
-          </div>
-        </motion.div>
+              <div className={cn('flex-shrink-0 mr-3 sm:mr-4 mt-0.5', config.iconColor)}>
+                <IconComponent size={24} className={position === 'center' ? 'animate-bounce' : 'animate-pulse'} />
+              </div>
+              <div className="flex-grow">
+                <h3 className={cn('font-bold text-base sm:text-lg', config.textColor)}>{title}</h3>
+                {message && (
+                  <p className={cn('text-xs sm:text-sm mt-1 sm:mt-2 whitespace-pre-line', config.textColor)}>
+                    {message}
+                  </p>
+                )}
+              </div>
+              <button 
+                onClick={handleClose}
+                className="flex-shrink-0 ml-2 sm:ml-3 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+              >
+                <X size={18} />
+              </button>
+            </div>
+          </motion.div>
+        </>
       )}
     </AnimatePresence>
   );
@@ -166,11 +182,22 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     const id = `notification-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
     const notificationItem = { ...props, id };
     
+    // 'center' 포지션은 한 번에 하나의 알림만 표시
+    if (props.position === 'center' || props.position === undefined) {
+      setNotifications(prev => {
+        // 기존의 center 포지션 알림을 모두 제거
+        const filtered = prev.filter(item => item.position !== 'center' && item.position !== undefined);
+        return [...filtered, notificationItem];
+      });
+    }
     // 동일한 타입의 이전 알림을 제거하고 새 알림만 표시 (중복 방지)
-    if (props.type === 'error' || props.type === 'warning') {
+    else if (props.type === 'error' || props.type === 'warning') {
       setNotifications(prev => {
         // 동일한 타입의 알림만 필터링
-        const filtered = prev.filter(item => item.type !== props.type);
+        const filtered = prev.filter(item => 
+          item.type !== props.type || 
+          (item.position !== props.position && item.position !== undefined)
+        );
         return [...filtered, notificationItem];
       });
     } else {
@@ -188,7 +215,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const groupedNotifications: Record<string, NotificationItem[]> = {};
   
   notifications.forEach(notification => {
-    const position = notification.position || 'top-right';
+    const position = notification.position || 'center';
     if (!groupedNotifications[position]) {
       groupedNotifications[position] = [];
     }
@@ -204,10 +231,9 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
             <Notification
               key={notification.id}
               {...notification}
-              // 위치에 따라 간격 조정
               className={cn(
-                index > 0 && position.includes('top') ? `mt-${3 + index}` : '',
-                index > 0 && position.includes('bottom') ? `mb-${3 + index}` : ''
+                position !== 'center' && index > 0 && position.includes('top') ? `mt-${3 + index}` : '',
+                position !== 'center' && index > 0 && position.includes('bottom') ? `mb-${3 + index}` : ''
               )}
               onClose={() => hideNotification(notification.id)}
             />

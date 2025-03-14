@@ -1,190 +1,150 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
-import { generateImageWithImage, getImageUploadUrl, saveGeneratedImage } from "../actions";
+import { useRef, useState, useCallback } from "react";
+import { generateImageWithImage } from "../actions";
 import { Loader2, Wand2 } from "lucide-react";
+import { useImageUpload } from "../hooks/useImageUpload";
+import { usePromptManagement } from "../hooks/usePromptManagement";
+import { useFormStatusManager } from "../hooks/useFormStatusManager";
+import { useCloudflareUpload } from "../hooks/useCloudflareUpload";
+import { handleGlobalError, UserFacingError } from "@/app/lib/error-handling";
 
 interface ImageToImageFormProps {
   onGenerationStart: () => void;
-  onGenerationComplete: (imageUrl: string, imageId: string) => void;
-  onError: (message: string) => void;
+  onGenerationComplete: (imageUrl: string, imageId: string, thumbnailUrl?: string) => void;
   compact?: boolean;
 }
 
 export default function ImageToImageForm({ 
   onGenerationStart, 
   onGenerationComplete, 
-  onError,
   compact = false
 }: ImageToImageFormProps) {
-  const [prompt, setPrompt] = useState("");
-  const [negativePrompt, setNegativePrompt] = useState("");
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [sourceImage, setSourceImage] = useState<File | null>(null);
+  // 커스텀 훅 사용
+  const {
+    imageFile,
+    previewUrl,
+    handleImageSelect,
+    clearImage
+  } = useImageUpload({ maxSizeMB: 10 });
+  
+  const {
+    prompt,
+    negativePrompt,
+    promptTokenCount,
+    negativeTokenCount,
+    setPrompt,
+    setNegativePrompt
+  } = usePromptManagement(1500, 500);
+  
+  const {
+    status,
+    isProcessing,
+    startProcess,
+    handleError,
+    setSuccess
+  } = useFormStatusManager();
+  
+  const { uploadToPermanentStorage } = useCloudflareUpload();
+  
+  // 로컬 상태
   const [strength, setStrength] = useState(0.8);
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [loadingState, setLoadingState] = useState<'idle' | 'generating' | 'uploading' | 'saving'>('idle');
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const [activeTab, setActiveTab] = useState<'prompt' | 'negative'>('prompt');
-  const [promptTokenCount, setPromptTokenCount] = useState(0);
-  const [negativeTokenCount, setNegativeTokenCount] = useState(0);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
-  // Token count calculation
-  const calculateTokens = (text: string): number => {
-    if (!text) return 0;
-    // Approximate token count calculation (English: 1 token ≈ 4 chars, Korean: 1 token ≈ 2-3 chars)
-    const koreanCharCount = (text.match(/[\u3131-\uD79D]/g) || []).length;
-    const otherCharCount = text.length - koreanCharCount;
-    return Math.ceil(koreanCharCount / 2.5 + otherCharCount / 4);
-  };
+  // 이미지 크기 상수
+  const IMAGE_WIDTH = 768;
+  const IMAGE_HEIGHT = 768;
   
-  // Handle prompt change
-  const handlePromptChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const newPrompt = e.target.value;
-    setPrompt(newPrompt);
-    const newTokens = calculateTokens(newPrompt);
-    setPromptTokenCount(newTokens);
-    
-    // Save to local storage
-    localStorage.setItem('imagePrompt', newPrompt);
-    
-    // Token limit warning
-    if (newTokens > 1500) {
-      console.warn("Prompt token count exceeds 1500 limit");
-    }
-  };
-  
-  const handleNegativePromptChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const newPrompt = e.target.value;
-    setNegativePrompt(newPrompt);
-    const newTokens = calculateTokens(newPrompt);
-    setNegativeTokenCount(newTokens);
-    
-    // Save to local storage
-    localStorage.setItem('imageNegativePrompt', newPrompt);
-    
-    // Token limit warning
-    if (newTokens > 500) {
-      console.warn("Negative prompt token count exceeds 500 limit");
-    }
-  };
-  
-  // 로컬 스토리지에서 이전 입력 데이터 복원
-  useEffect(() => {
-    const savedImagePrompt = localStorage.getItem('imagePrompt');
-    if (savedImagePrompt) {
-      setPrompt(savedImagePrompt);
-      setPromptTokenCount(calculateTokens(savedImagePrompt));
-    }
-    
-    const savedNegativePrompt = localStorage.getItem('imageNegativePrompt');
-    if (savedNegativePrompt) {
-      setNegativePrompt(savedNegativePrompt);
-      setNegativeTokenCount(calculateTokens(savedNegativePrompt));
-    }
-    
-    const savedStrength = localStorage.getItem('strength');
-    if (savedStrength) setStrength(parseFloat(savedStrength));
-  }, []);
-  
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // 이미지 파일 선택 핸들러
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     
-    // 이미지 파일 검증
-    if (!file.type.startsWith('image/')) {
-      onError('Please upload only image files');
-      return;
+    try {
+      await handleImageSelect(file);
+    } catch (error) {
+      console.error("Image upload error:", error);
     }
-    
-    // 이미지 크기 검증 (10MB 제한)
-    if (file.size > 10 * 1024 * 1024) {
-      onError('Image size must be 10MB or less');
-      return;
-    }
-    
-    const tempUrl = URL.createObjectURL(file);
-    setPreviewUrl(tempUrl);
-    setSourceImage(file);
   };
   
+  // 폼 제출 핸들러
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!prompt.trim() || !sourceImage) {
-      onError('Please provide both an image and a prompt');
-      return;
-    }
-    
-    if (promptTokenCount > 1500) {
-      onError('Prompt cannot exceed 1500 tokens');
-      return;
-    }
-    
-    if (negativeTokenCount > 500) {
-      onError('Negative prompt cannot exceed 500 tokens');
-      return;
-    }
-    
     try {
-      setIsGenerating(true);
+      // 유효성 검사
+      if (!prompt.trim()) {
+        throw new UserFacingError('프롬프트를 입력해주세요');
+      }
+      
+      if (!imageFile) {
+        throw new UserFacingError('이미지를 업로드해주세요');
+      }
+      
+      if (promptTokenCount > 1500) {
+        throw new UserFacingError('프롬프트는 1500 토큰을 초과할 수 없습니다');
+      }
+      
+      if (negativeTokenCount > 500) {
+        throw new UserFacingError('네거티브 프롬프트는 500 토큰을 초과할 수 없습니다');
+      }
+      
+      // 생성 시작
       onGenerationStart();
+      startProcess('uploading');
       
-      // Save input data to local storage
-      localStorage.setItem('imagePrompt', prompt);
-      localStorage.setItem('imageNegativePrompt', negativePrompt);
-      localStorage.setItem('strength', strength.toString());
+      // 1. 이미지 업로드 URL 가져오기 및 이미지 업로드
+      const formData = new FormData();
+      formData.append('file', imageFile);
       
-      // 1. Get image upload URL
-      setLoadingState('uploading');
-      const { uploadUrl, fileKey } = await getImageUploadUrl();
-      
-      // 2. Upload source image
-      const uploadResponse = await fetch(uploadUrl, {
-        method: 'PUT',
-        body: sourceImage,
-        headers: {
-          'Content-Type': sourceImage.type,
-        }
+      const uploadResponse = await fetch('/api/image-upload', {
+        method: 'POST',
+        body: formData
       });
       
       if (!uploadResponse.ok) {
-        throw new Error('Error occurred during image upload');
+        throw new Error('이미지 업로드 중 오류가 발생했습니다');
       }
       
-      // 3. Call image generation API
-      setLoadingState('generating');
+      const { fileUrl, fileKey } = await uploadResponse.json();
+      
+      // 2. 이미지 생성 API 호출
+      startProcess('generating');
       const result = await generateImageWithImage(
         prompt,
         fileKey,
         strength
-      ) as { tempUrl: string; prompt: string; originalImage: string };
+      );
       
-      if (!result || !result.tempUrl) {
-        throw new Error('Image generation failed');
+      if (!result || !result.imageUrl) {
+        throw new Error('이미지 생성에 실패했습니다');
       }
       
-      // 4. Save generated image information
-      setLoadingState('saving');
-      const savedImage = await saveGeneratedImage({
-        prompt: prompt,
-        negativePrompt: negativePrompt,
-        fileUrl: result.tempUrl,
-        modelId: "img2img-model",
-        width: 768,
-        height: 768
-      });
+      // 3. 생성된 이미지 정보 저장
+      startProcess('saving');
+      const uploadResult = await uploadToPermanentStorage(
+        result.imageUrl,
+        result.id?.toString() || `temp-${Date.now()}`,
+        IMAGE_WIDTH,  // 이미지 너비
+        IMAGE_HEIGHT  // 이미지 높이
+      );
       
-      // 5. Call completion callback
-      if (savedImage && savedImage.id) {
-        onGenerationComplete(savedImage.fileUrl, String(savedImage.id));
+      if (!uploadResult.success || !uploadResult.url) {
+        throw new Error('이미지 저장에 실패했습니다');
       }
+      
+      // 4. 완료 콜백 호출
+      setSuccess();
+      onGenerationComplete(
+        uploadResult.url,
+        uploadResult.id || String(Date.now()),
+        uploadResult.thumbnailUrl || undefined
+      );
+      
     } catch (error) {
-      console.error('Error during image generation:', error);
-      onError(error instanceof Error ? error.message : 'Error occurred during image generation');
-    } finally {
-      setIsGenerating(false);
-      setLoadingState('idle');
+      console.error('이미지 생성 오류:', error);
+      handleError(error);
     }
   };
   
@@ -201,11 +161,7 @@ export default function ImageToImageForm({
             />
             <button
               type="button"
-              onClick={() => {
-                setPreviewUrl(null);
-                setSourceImage(null);
-                if (fileInputRef.current) fileInputRef.current.value = '';
-              }}
+              onClick={() => clearImage()}
               className="absolute bottom-3 right-3 bg-neutral-800 p-2 rounded-lg text-white text-xs hover:bg-neutral-700"
             >
               Change image
@@ -269,7 +225,7 @@ export default function ImageToImageForm({
           <div className="relative">
             <textarea
               value={prompt}
-              onChange={handlePromptChange}
+              onChange={(e) => setPrompt(e.target.value)}
               className="w-full h-28 bg-neutral-800 rounded-b-lg p-3 pb-8 resize-none text-sm border-0 focus:ring-0 focus:outline-none"
               placeholder="Describe what you want to generate..."
               required
@@ -284,7 +240,7 @@ export default function ImageToImageForm({
           <div className="relative">
             <textarea
               value={negativePrompt}
-              onChange={handleNegativePromptChange}
+              onChange={(e) => setNegativePrompt(e.target.value)}
               className="w-full h-28 bg-neutral-800 rounded-b-lg p-3 pb-8 resize-none text-sm border-0 focus:ring-0 focus:outline-none"
               placeholder="Describe what you want to avoid in the generated image..."
             />
@@ -323,19 +279,22 @@ export default function ImageToImageForm({
         <button
           type="submit"
           disabled={
-            isGenerating || 
+            isProcessing || 
             !prompt.trim() || 
-            !negativePrompt.trim() || 
-            !sourceImage || 
+            !imageFile || 
             promptTokenCount > 1500 || 
             negativeTokenCount > 500
           }
           className="w-full px-6 py-3.5 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 rounded-lg disabled:opacity-50 transition-colors flex justify-center items-center gap-2 font-medium shadow-lg"
         >
-          {isGenerating ? (
+          {isProcessing ? (
             <>
               <Loader2 className="h-5 w-5 animate-spin" />
-              <span>Generating...</span>
+              <span>
+                {status === 'uploading' ? '업로드 중...' :
+                 status === 'generating' ? '생성 중...' :
+                 status === 'saving' ? '저장 중...' : '처리 중...'}
+              </span>
             </>
           ) : (
             <>
