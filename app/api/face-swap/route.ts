@@ -1,21 +1,24 @@
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { z } from "zod";
+import { getSpecialModelById } from "../../(tabs)/image/data/specialModels";
 
 /**
  * Face Swap API 엔드포인트
  * 
  * 소스 이미지의 얼굴을 타겟 이미지에 적용합니다.
- * cdingram/face-swap Replicate 모델 사용
+ * 다양한 Face Swap 모델을 지원합니다.
  * 
  * [요청 형식]
  * POST /api/face-swap
  * 
  * [요청 본문]
  * {
+ *   "model_id": "face-swap",                             // 사용할 Face Swap 모델 ID (선택적, 기본값: "face-swap")
  *   "target_image": "https://..." 또는 "data:image/...",  // 얼굴을 바꿀 대상 이미지 URL 또는 base64
  *   "source_image": "https://..." 또는 "data:image/...",  // 얼굴 소스 이미지 URL 또는 base64
- *   "strength": 0.8                                      // 적용 강도 (0.1 ~ 1.0)
+ *   "strength": 0.8,                                     // 적용 강도 (0.1 ~ 1.0)
+ *   ...모델별 추가 매개변수
  * }
  * 
  * [응답 형식]
@@ -30,12 +33,13 @@ const isValidImage = (value: string) => {
   return value.startsWith('http') || value.startsWith('data:image/');
 };
 
-// 요청 스키마 검증
-const faceSwapSchema = z.object({
+// 기본 요청 스키마 검증 (동적 필드를 위해 먼저 기본 필드만 검증)
+const baseFaceSwapSchema = z.object({
+  model_id: z.string().optional().default('face-swap'),
   target_image: z.string().refine(isValidImage, "유효한 타겟 이미지 URL이나 base64 데이터가 필요합니다."),
   source_image: z.string().refine(isValidImage, "유효한 소스 이미지 URL이나 base64 데이터가 필요합니다."),
   strength: z.number().min(0.1).max(1.0).default(0.8)
-});
+}).passthrough(); // 추가 필드 허용
 
 export async function POST(request: Request) {
   try {
@@ -48,15 +52,8 @@ export async function POST(request: Request) {
     // 요청 본문 파싱
     const body = await request.json();
     
-    // 로깅
-    console.log("Face Swap 요청:", {
-      targetImage: body.target_image?.substring(0, 50) + "...",
-      sourceImage: body.source_image?.substring(0, 50) + "...",
-      strength: body.strength
-    });
-    
-    // 스키마 검증
-    const validationResult = faceSwapSchema.safeParse(body);
+    // 기본 스키마 검증
+    const validationResult = baseFaceSwapSchema.safeParse(body);
     if (!validationResult.success) {
       return NextResponse.json({ 
         error: "유효하지 않은 요청 형식입니다", 
@@ -64,7 +61,54 @@ export async function POST(request: Request) {
       }, { status: 400 });
     }
     
-    const { target_image, source_image, strength } = validationResult.data;
+    const { model_id = 'face-swap', target_image, source_image, strength, ...additionalParams } = validationResult.data;
+    
+    // 모델 정보 가져오기
+    const modelInfo = getSpecialModelById(model_id);
+    if (!modelInfo || modelInfo.category !== 'faceswap') {
+      return NextResponse.json({ 
+        error: `유효하지 않은 Face Swap 모델 ID: ${model_id}` 
+      }, { status: 400 });
+    }
+    
+    // 로깅
+    console.log("Face Swap 요청:", {
+      modelId: model_id,
+      targetImage: target_image?.substring(0, 50) + "...",
+      sourceImage: source_image?.substring(0, 50) + "...",
+      strength,
+      additionalParams: Object.keys(additionalParams).length > 0 ? '있음' : '없음'
+    });
+    
+    // 모델 API 정보 추출 (owner/model:version 형식 또는 버전 없는 형식)
+    let versionId = '';
+    const apiModel = modelInfo.apiModel;
+    
+    if (apiModel.includes(':')) {
+      const [_, version] = apiModel.split(':');
+      versionId = version;
+    } else {
+      // 모델 정보에 버전이 없는 경우 오류 반환
+      return NextResponse.json({ 
+        error: `모델 정보에 버전 ID가 없습니다: ${apiModel}` 
+      }, { status: 500 });
+    }
+    
+    // 모델별 입력 파라미터 구성
+    const modelInputs: Record<string, any> = {
+      input_image: target_image,
+      swap_image: source_image,
+      strength
+    };
+    
+    // 추가 매개변수 병합 (모델별 설정)
+    if (Object.keys(additionalParams).length > 0) {
+      Object.entries(additionalParams).forEach(([key, value]) => {
+        // 네이밍 규칙에 따라 변환 (예: faceDetectionConfidence -> face_detection_confidence)
+        const apiKey = key.replace(/([A-Z])/g, '_$1').toLowerCase();
+        modelInputs[apiKey] = value;
+      });
+    }
     
     // Replicate API 호출
     const response = await fetch("https://api.replicate.com/v1/predictions", {
@@ -75,12 +119,8 @@ export async function POST(request: Request) {
       },
       body: JSON.stringify({
         // 모델 버전 지정
-        version: "d1d6ea8c8be89d664a07a457526f7128109dee7030fdac424788d762c71ed111",
-        input: {
-          input_image: target_image,
-          swap_image: source_image,
-          strength
-        }
+        version: versionId,
+        input: modelInputs
       })
     });
     
@@ -140,7 +180,8 @@ export async function POST(request: Request) {
     
     return NextResponse.json({
       success: true,
-      imageUrl
+      imageUrl,
+      modelUsed: model_id
     });
     
   } catch (error: any) {

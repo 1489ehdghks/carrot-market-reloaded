@@ -43,11 +43,20 @@ export function useCloudflareUpload() {
     setError(null);
     
     try {
-      if (!imageUrl) {
-        throw new UserFacingError('업로드할 이미지 URL이 제공되지 않았습니다');
+      // URL 유효성 검사 강화
+      if (!imageUrl || imageUrl === "pending" || imageUrl === "null") {
+        console.warn("[Cloudflare] 유효하지 않은 이미지 URL:", imageUrl);
+        throw new UserFacingError('유효한 이미지 URL이 아닙니다');
+      }
+      
+      // URL 형식 확인 (http 또는 https로 시작하는지)
+      if (!imageUrl.startsWith('http')) {
+        console.warn("[Cloudflare] URL 형식이 아닌 값:", imageUrl);
+        throw new UserFacingError('올바른 이미지 URL 형식이 아닙니다');
       }
       
       console.log("[Cloudflare] 영구 저장소 업로드 시작", {
+        imageUrl: imageUrl.substring(0, 30) + "...",
         imageId,
         size: width && height ? `${width}x${height}` : "알 수 없음"
       });

@@ -9,6 +9,7 @@ import { DownloadIcon, RefreshCcw, Share2 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { publishImage } from "../actions";
 import { toast } from "sonner";
+import EmptyImageState from "./EmptyImageState";
 
 interface GeneratedImageProps {
   imageUrl: string;
@@ -22,8 +23,17 @@ export default function GeneratedImage({ imageUrl, imageId, onReset }: Generated
   const downloadLinkRef = useRef<HTMLAnchorElement>(null);
   const [isPublishing, setIsPublishing] = useState(false);
   const [sharedUrl, setSharedUrl] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
-  if (!imageUrl) return null;
+  if (!imageUrl) {
+    return (
+      <EmptyImageState 
+        message="이미지가 아직 없습니다" 
+        showUploadButton={true}
+        onUploadClick={() => fileInputRef.current?.click()}
+      />
+    );
+  }
   
   const handleDownload = async () => {
     try {
@@ -195,6 +205,23 @@ export default function GeneratedImage({ imageUrl, imageId, onReset }: Generated
     <div className="mt-8 rounded-xl border border-neutral-800 bg-neutral-900/50 p-6 space-y-4">
       <div className="flex justify-between items-center">
         <h2 className="text-xl font-medium">생성된 이미지</h2>
+        <input
+          type="file"
+          ref={fileInputRef}
+          className="hidden"
+          accept="image/*"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) {
+              // 파일을 ObjectURL로 변환하여 이미지로 사용
+              const objectUrl = URL.createObjectURL(file);
+              // onReset을 호출하여 이전 상태를 초기화하고
+              // 상위 컴포넌트에서 이미지를 설정하도록 할 수 있습니다.
+              // 여기서는 단순히 표시만 합니다.
+              onReset();
+            }
+          }}
+        />
       </div>
       
       <div className="relative aspect-square w-full sm:w-3/4 md:w-2/3 lg:w-1/2 mx-auto rounded-lg overflow-hidden shadow-lg">

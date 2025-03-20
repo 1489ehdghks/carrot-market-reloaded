@@ -1,7 +1,6 @@
 import HeroSection from "./sections/HeroSection";
 import FeaturesSection from "./sections/FeaturesSection";
 import SpecialFeaturesSection from "./sections/SpecialFeaturesSection";
-import PricingSection from "./sections/PricingSection";
 
 export default function Home() {
   return (
@@ -9,7 +8,6 @@ export default function Home() {
       <HeroSection />
       <FeaturesSection />
       <SpecialFeaturesSection />
-      <PricingSection />
     </div>
   );
 }

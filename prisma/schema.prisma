@@ -93,15 +93,15 @@ model AIImage {
   price          Float?
   category       String
   tags           String?
-  fileUrl        String
-  thumbnailUrl   String
+  fileUrl        String         @db.Text
+  thumbnailUrl   String         @db.Text
   width          Int
   height         Int
   format         String
   prompt         String         @db.Text
   negativePrompt String?        @db.Text
   model          String
-  settings       String?
+  settings       String?        @db.Text
   steps          Int?
   cfgScale       Float?
   sampler        String?

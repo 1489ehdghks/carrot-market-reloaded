@@ -60,6 +60,24 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // "pending" 또는 무효한 URL 체크
+    if (imageUrl === "pending" || imageUrl === "null") {
+      return NextResponse.json(
+        { success: false, error: "유효하지 않은 이미지 URL입니다" },
+        { status: 400 }
+      );
+    }
+
+    // URL 형식 검증
+    try {
+      new URL(imageUrl);
+    } catch (error) {
+      return NextResponse.json(
+        { success: false, error: "유효한 URL 형식이 아닙니다" },
+        { status: 400 }
+      );
+    }
+
     // Cloudflare API 키와 계정 ID 가져오기
     const cloudflareAccountId = process.env.CLOUDFLARE_ACCOUNT_ID;
     const cloudflareApiKey = process.env.CLOUDFLARE_API_KEY;

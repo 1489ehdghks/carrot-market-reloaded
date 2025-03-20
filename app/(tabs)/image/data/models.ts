@@ -11,10 +11,10 @@ export interface AIModel {
   vae: string;
   category: 'All' | '2D' | 'realistic';
   apiModel: string;
-  nsfw: boolean;
   safety_tolerance?: number;
   isDefault?: boolean;
   price?: string; // 이미지 생성당 가격 정보
+  tokenPrice?: number; // 토큰으로 환산된 가격
   
   // 모델 기능 태그
   modelTags: {
@@ -50,12 +50,11 @@ export const AI_MODELS: AIModel[] = [
     vae: "Pony-Realism-v2.2",
     category: "realistic",
     apiModel: "aisha-ai-official/pony-realism-v2.2:142ae19de7553e50fe729910b35734eb233d8267661b8355be5a7ab0b457db1c",
-    nsfw: true,
     isDefault: true,
     price: "$0.0068",
     
     modelTags: {
-      base: 'SD',
+      base: 'PONY',
       style: ['사실적'],
       nsfwSupport: true
     },
@@ -107,11 +106,10 @@ VAE: Euler a
     vae: "default",
     category: "realistic",
     apiModel: "charlesmccarthy/pony-sdxl:b070dedae81324788c3c933a5d9e1270093dc74636214b9815dae044b4b3a58a",
-    nsfw: true,
     price: "$0.0053 / 이미지 (188회 / $1)",
     
     modelTags: {
-      base: 'SD',
+      base: 'PONY',
       style: ['사실적'],
       nsfwSupport: true
     },
@@ -163,11 +161,10 @@ VAE: default
     vae: "default",
     category: "2D",
     apiModel: "delta-lock/ponynai3",
-    nsfw: true,
     price: "$0.030 / 이미지 (33회 / $1)",
     
     modelTags: {
-      base: 'SD',
+      base: 'PONY',
       style: ['애니메이션', '사실적'],
       nsfwSupport: true
     },
@@ -215,23 +212,22 @@ CFG 스케일: 8
   {
     id: "Realistic Vision 5.1",
     name: "Realistic Vision 5.1",
-    description: "현실적인 이미지 생성",
+    description: "셀카 감성, 매우 현실적인, 긴 생성시간, 저렴한 비용",
     vae: "default",
     category: "realistic",
     apiModel: "wglint/3_rv:f543bb04f1cf613c3df1cdb8219288c6b44abc2c39f006c188f8d22a9598bd47",
-    nsfw: false,
     price: "0.0038",
     
     modelTags: {
       base: 'SD',
       style: ['사실적'],
-      nsfwSupport: false
+      nsfwSupport: true
     },
     
     configOptions: {
       steps: {
         name: "스텝 수",
-        description: "생성 단계 수입니다. Flux 모델은 적은 스텝으로도 높은 품질의 이미지를 생성합니다.",
+        description: "생성 단계 수입니다. 높아질수록 시간이 늘어나지만 표현이 확률적으로 디테일해집니다. 해당 모델은 100까지 지원합니다.",
         type: "number",
         default: 20,
         min: 1,
@@ -242,7 +238,7 @@ CFG 스케일: 8
         name: "CFG 스케일",
         description: "프롬프트 충실도입니다. 값이 높을수록 프롬프트와 유사한 이미지가 생성됩니다.",
         type: "number",
-        default: 7,
+        default: 5,
         min: 1,
         max: 30,
         step: 0.5
@@ -251,16 +247,21 @@ CFG 스케일: 8
         name: "샘플러",
         description: "이미지 생성에 사용할 샘플링 방법입니다.",
         type: "select",
-        default: "Default",
+        default: "MultistepDPM-Solver",
         options: [
-          { value: "Default", label: "Default Flux" }
+          { value: "EulerA", label: "EulerA" },
+          { value: "MultistepDPM-Solver", label: "MultistepDPM-Solver" },
+          { value: "default", label: "default" },
         ]
       }
     },
     
-    recommendedSettings: `스텝 수: 20
-CFG 스케일: 7
-샘플러: Default
+    recommendedSettings: `스텝 수: 20 (100까지 지원)
+CFG 스케일: 5 (3.5 ~ 7까지 지원)
+너비 : 512 ~ 1920 (728)
+높이 : 728 ~ 1920 (728)
+샘플러: MultistepDPM-Solver
+VAE : 지원안함.
 `
   },
   
@@ -271,7 +272,6 @@ CFG 스케일: 7
     vae: "default",
     category: "All",
     apiModel: "black-forest-labs/flux-schnell",
-    nsfw: false,
     price: "가격 문의 필요",
     
     modelTags: {
@@ -324,7 +324,6 @@ CFG 스케일: 7
     vae: "default",
     category: "All",
     apiModel: "black-forest-labs/flux-1.1-pro",
-    nsfw: false,
     price: "이미지당 과금 방식 (정확한 가격 문의 필요)",
     
     modelTags: {
@@ -377,7 +376,6 @@ CFG 스케일: 9
     vae: "default",
     category: "All",
     apiModel: "aisha-ai-official/nsfw-flux-dev:fb4f086702d6a301ca32c170d926239324a7b7b2f0afc3d232a9c4be382dc3fa",
-    nsfw: false,
     price: "0.0057",
     
     modelTags: {
@@ -427,13 +425,11 @@ price: 0.0057
   {
     id: "realism-xl",
     name: "realism-xl",
-    description: "향상된 이미지 품질, 다양성을 제공하는 모델입니다.",
+    description: "cfg 스케일을 늘릴수록 2D가 됨. 3.5 일 때 실사와 비슷함.",
     vae: "default",
     category: "All",
     apiModel: "asiryan/realism-xl:ff26a1f71bc27f43de016f109135183e0e4902d7cdabbcbb177f4f8817112219",
-    nsfw: true,
     price: "0.0033",
-    
     modelTags: {
       base: 'PONY',
       style: ['사실적'],
@@ -445,7 +441,7 @@ price: 0.0057
         name: "스텝 수",
         description: "높일수록 만드는 시간이 오래걸리지만 좀 더 세밀하게 그려냅니다.",
         type: "number",
-        default: 30,
+        default: 28,
         min: 1,
         max: 50,
         step: 1
@@ -454,18 +450,88 @@ price: 0.0057
         name: "CFG 스케일",
         description: "값이 높을수록 프롬프트와 유사한 이미지가 생성됩니다.",
         type: "number",
-        default: 14,
+        default: 3.5,
         min: 1,
         max: 20,
         step: 0.5
       },
+      sampler: {
+        name: "샘플러",
+        description: "이미지 생성에 사용할 샘플링 방법입니다.",
+        type: "select",
+        default: "K_EULER_ANCESTRAL",
+        options: [
+          { value: "K_EULER_ANCESTRAL", label: "K_EULER_ANCESTRAL" },
+          { value: "K_EULER", label: "K_EULER" },
+          { value: "KarrasDPM", label: "KarrasDPM" },
+          { value: "DPMSolverMultistep", label: "DPMSolverMultistep" }
+        ]
+      }
     },
     
     recommendedSettings: `스텝 수: 30
 CFG 스케일: 14
 샘플러: K_EULER_ANCESTRAL
 참고: 최고 품질의 Flux 모델, NSFW 내용은 생성 불가`
-  }
+  },
+    {
+    id: "Realism-IL-v3",
+    name: "Realism-IL-v3",
+    description: "서양인을 특화된 모델.vae를 지원함.",
+    vae: "default",
+    category: "realistic",
+    apiModel: "aisha-ai-official/realism-il-v3:bb8857fc0640b29bec38c33d56884a7c7e6359ad4cfc26e937732872360d8a0a",
+    isDefault: false,
+    price: "$0.0049",
+    
+    modelTags: {
+      base: 'SD',
+      style: ['사실적'],
+      nsfwSupport: true
+    },
+    
+    configOptions: {
+      steps: {
+        name: "스텝 수",
+        description: "생성 단계 수입니다. 높을수록 품질이 향상되지만 생성 시간이 길어집니다.",
+        type: "number",
+        default: 28,
+        min: 1,
+        max: 100,
+        step: 1
+      },
+      cfgScale: {
+        name: "CFG 스케일",
+        description: "프롬프트 충실도입니다. 값이 높을수록 프롬프트와 유사한 이미지가 생성됩니다.",
+        type: "number",
+        default: 3,
+        min: 1,
+        max: 20,
+        step: 0.5
+      },
+      sampler: {
+        name: "샘플러",
+        description: "이미지 생성에 사용할 샘플링 방법입니다.",
+        type: "select",
+        default: "Euler a",
+        options: [
+          { value: "DPM++ 2M SDE", label: "DPM++ 2M SDE" },
+          { value: "DPM++ 2M Karras", label: "DPM++ 2M Karras" },
+          { value: "DPM++ 2M SDE Karras", label: "DPM++ 2M SDE Karras" },
+          { value: "Euler a", label: "Euler a" }
+        ]
+      }
+    },
+    
+    recommendedSettings: `스텝 수: 25
+CFG 스케일: 0.5
+샘플러: DPM++ 2M SDE
+VAE: Euler a
+권장 비율: 1:1 (정사각형)
+프롬프트 : Stable_Yogis_Illustrious_Positives, realistic, photorealistic, detailed
+부정프롬프트 : Stable_Yogis_Illustrious_Negatives-neg, 
+`
+  },
 ];
 
 // 중복 모델 ID 검사

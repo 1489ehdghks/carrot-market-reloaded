@@ -100,17 +100,74 @@ export function useImageGeneration(
         throw new UserFacingError(data.error || "이미지 생성에 실패했습니다");
       }
 
-      // 이미지 URL 확인
-      if (!data.image || !data.image.url) {
-        throw new UserFacingError("유효한 이미지 URL이 반환되지 않았습니다");
+      // 이미지 정보 설정
+      const tempId = data.image.id || `temp-${Date.now()}`;
+      setImageId(tempId);
+      
+      // 처리 중 상태 확인
+      if (data.processing && (!data.image.url || data.image.status === "processing")) {
+        console.log("이미지 처리 중, 상태 폴링 시작:", tempId);
+        setStatus('generating');
+        
+        // 상태 폴링 (최대 60초, 5초 간격)
+        let attempt = 0;
+        const maxAttempts = 12;
+        let imageData = null;
+        
+        while (attempt < maxAttempts) {
+          attempt++;
+          await new Promise(resolve => setTimeout(resolve, 5000)); // 5초 대기
+          
+          try {
+            // 이미지 상태 확인
+            const statusResponse = await fetch(`/api/generate?tempId=${tempId}`);
+            
+            if (!statusResponse.ok) {
+              console.log(`폴링 시도 ${attempt}/${maxAttempts}: 응답 오류`);
+              continue;
+            }
+            
+            const statusData = await statusResponse.json();
+            console.log(`폴링 시도 ${attempt}/${maxAttempts}:`, statusData);
+            
+            if (statusData.success && statusData.status === 'completed' && statusData.image?.url) {
+              // 처리 완료, 이미지 URL 설정
+              imageData = statusData.image;
+              break;
+            } else if (statusData.status === 'failed') {
+              // 처리 실패
+              throw new UserFacingError("이미지 생성에 실패했습니다");
+            }
+            
+            // 진행률 업데이트 (80~95%)
+            setProgress(80 + Math.min(15, attempt));
+          } catch (error) {
+            console.error("이미지 상태 폴링 중 오류:", error);
+          }
+        }
+        
+        if (!imageData || !imageData.url) {
+          throw new UserFacingError("이미지 생성 시간이 초과되었습니다");
+        }
+        
+        // 이미지 URL 설정
+        setImageUrl(imageData.url);
+        setStatus('complete');
+        setProgress(100);
+        
+        // 완료 콜백 호출
+        if (onComplete) onComplete(imageData.url, imageData.id || tempId);
+        return;
       }
 
-      // 이미지 정보 설정
+      // 바로 URL이 있는 경우 (기존 코드)
       const tempUrl = data.image.url;
-      const tempId = data.image.id || `temp-${Date.now()}`;
+      
+      if (!tempUrl) {
+        throw new UserFacingError("유효한 이미지 URL이 반환되지 않았습니다");
+      }
       
       setImageUrl(tempUrl);
-      setImageId(tempId);
       setStatus('complete');
       setProgress(100);
       
