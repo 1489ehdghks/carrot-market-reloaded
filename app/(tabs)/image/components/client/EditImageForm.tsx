@@ -2,12 +2,12 @@
 
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import { Label } from '@/components/ui/label';
-import { Slider } from '@/components/ui/slider';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Card, CardContent } from '@/components/ui/dataDisplay/card';
+import { Label } from '@/components/ui/form/label';
+import { Slider } from '@/components/ui/form/slider';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/dataDisplay/tabs';
 import { Loader2, Image as ImageIcon, PaintBucket, Eraser } from 'lucide-react';
-import ImageUploader from '../ImageUploader';
+import ImageUploader from '../shared/ImageUploader';
 
 // 컴포넌트 props 정의
 interface EditImageFormProps {

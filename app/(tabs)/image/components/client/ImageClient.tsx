@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import GeneratedImage from "../GeneratedImage";
-import TextToImageForm from "../TextToImageForm";
+import GeneratedImage from "../shared/GeneratedImage";
+import TextToImageForm from "../textToImage/TextToImageForm";
 
 export default function ImageClient() {
   const [generatedImageUrl, setGeneratedImageUrl] = useState<string | null>(null);

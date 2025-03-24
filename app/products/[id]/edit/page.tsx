@@ -1,9 +1,9 @@
 "use client"
 
 import { useState, useEffect, use } from "react";
-import Input from "@/components/input";
+import Input from "@/components/feature/common/input";
 import { PhotoIcon } from "@heroicons/react/24/outline";
-import Button from "@/components/button";
+import Button from "@/components/feature/common/button";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";

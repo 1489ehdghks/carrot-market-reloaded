@@ -6,21 +6,31 @@ interface CollapsiblePanelProps {
   title: string;
   children: React.ReactNode;
   defaultOpen?: boolean;
+  onOpenChange?: (isOpen: boolean) => void;
 }
 
 export function CollapsiblePanel({ 
   title, 
   children, 
-  defaultOpen = false 
+  defaultOpen = false,
+  onOpenChange
 }: CollapsiblePanelProps) {
   const [isOpen, setIsOpen] = useState(defaultOpen);
+
+  const toggleOpen = () => {
+    const newIsOpen = !isOpen;
+    setIsOpen(newIsOpen);
+    if (onOpenChange) {
+      onOpenChange(newIsOpen);
+    }
+  };
 
   return (
     <div className="border border-neutral-800 rounded-lg overflow-hidden">
       <button
         type="button"
         className="w-full flex justify-between items-center p-3 bg-neutral-900 hover:bg-neutral-800 transition-colors text-left"
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={toggleOpen}
       >
         <span className="font-medium">{title}</span>
         <svg 

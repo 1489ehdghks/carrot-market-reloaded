@@ -1,4 +1,4 @@
-import ChatMessagesList from "@/components/chat-messages-list";
+import ChatMessagesList from "@/components/feature/chat/chat-messages-list";
 import {db} from "@/lib/db";
 import getSession from "@/lib/session";
 import { Prisma } from "@prisma/client";

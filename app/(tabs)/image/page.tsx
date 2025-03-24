@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/dataDisplay/tabs";
+import { Card, CardContent } from '@/components/ui/dataDisplay/card';
 import { Button } from '@/components/ui/button';
 import { Download, Share2, Settings } from 'lucide-react';
 import { 
@@ -12,18 +12,18 @@ import {
   SelectItem, 
   SelectTrigger, 
   SelectValue 
-} from '@/components/ui/select';
-import { Switch } from '@/components/ui/switch';
+} from '@/components/ui/form/select';
+import { Switch } from '@/components/ui/form/switch';
 import { toast } from 'sonner';
-import EmptyImageState from './components/EmptyImageState';
+import EmptyImageState from './components/shared/EmptyImageState';
 
 // 동적 임포트로 필요할 때만 로드되도록 설정
-const TextToImageForm = dynamic(() => import('./components/TextToImageForm'), {
+const TextToImageForm = dynamic(() => import('./components/textToImage/TextToImageForm'), {
   loading: () => <div className="h-[500px] flex items-center justify-center">텍스트-이미지 생성기 로딩 중...</div>,
   ssr: false
 });
 
-const ImageToImageForm = dynamic(() => import('./components/ImageToImageForm'), {
+const ImageToImageForm = dynamic(() => import('./components/imageToImage/ImageToImageForm'), {
   loading: () => <div className="h-[500px] flex items-center justify-center">이미지-이미지 생성기 로딩 중...</div>,
   ssr: false
 });
@@ -33,13 +33,13 @@ const EditImageForm = dynamic(() => import('./components/client/EditImageForm'),
   ssr: false
 });
 
-const ImageUploader = dynamic(() => import('./components/ImageUploader'), {
+const ImageUploader = dynamic(() => import('./components/shared/ImageUploader'), {
   loading: () => <div className="h-[150px] flex items-center justify-center">이미지 업로드 로딩 중...</div>,
   ssr: false
 });
 
 // 동적으로 PublishDialog 컴포넌트 가져오기
-const PublishDialog = dynamic(() => import('./components/PublishDialog'), {
+const PublishDialog = dynamic(() => import('./components/shared/PublishDialog'), {
   loading: () => null,
   ssr: false
 });

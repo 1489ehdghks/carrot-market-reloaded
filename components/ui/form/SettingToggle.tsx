@@ -1,7 +1,7 @@
 "use client";
 
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/form/switch";
+import { Label } from "@/components/ui/form/label";
 
 interface SettingToggleProps {
   label: string;

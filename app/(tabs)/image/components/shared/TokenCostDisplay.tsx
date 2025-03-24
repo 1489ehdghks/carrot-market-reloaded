@@ -4,7 +4,7 @@ import React from 'react';
 import { useState, useEffect } from 'react';
 import { CustomTooltip } from '@/components/ui/custom-tooltip';
 import { InfoIcon } from 'lucide-react';
-import { calculateImageCost } from '../data/tokenUtils';
+import { calculateImageCost } from '../../data/tokenUtils';
 
 interface TokenCostDisplayProps {
   modelId: string;

@@ -2,21 +2,7 @@
 
 import { useState } from 'react';
 import { handleGlobalError, UserFacingError } from '@/app/lib/error-handling';
-
-interface CloudflareUploadResult {
-  success: boolean;
-  url: string | null;
-  thumbnailUrl?: string | null;
-  id: string | null;
-  error: string | null;
-  variants?: {
-    original: string;
-    height: string;
-    width: string;
-    normal: string;
-    public: string;
-  } | null;
-}
+import { CloudflareUploadResult } from '@/lib/cloudflare';
 
 /**
  * Cloudflare 이미지 업로드 기능을 캡슐화하는 훅
@@ -153,7 +139,7 @@ export function useCloudflareUpload() {
       if (width) formData.append('width', width.toString());
       if (height) formData.append('height', height.toString());
       
-      const response = await fetch('/api/cloudflare-direct-upload', {
+      const response = await fetch('/api/image-upload', {
         method: 'POST',
         body: formData,
       });
@@ -168,20 +154,20 @@ export function useCloudflareUpload() {
       }
       
       console.log("[Cloudflare] 로컬 이미지 업로드 성공:", {
-        id: data.id?.substring(0, 8) || "없음",
-        hasUrl: !!data.url,
+        id: data.fileKey?.substring(0, 8) || "없음",
+        hasUrl: !!data.fileUrl,
         hasThumbnail: !!data.thumbnailUrl
       });
       
-      if (!data.url) {
+      if (!data.fileUrl) {
         throw new Error('Cloudflare에서 이미지 URL을 반환하지 않았습니다');
       }
       
       return {
         success: true,
-        url: data.url,
+        url: data.fileUrl,
         thumbnailUrl: data.thumbnailUrl || null,
-        id: data.id || null,
+        id: data.fileKey || null,
         variants: data.variants || null,
         error: null
       };

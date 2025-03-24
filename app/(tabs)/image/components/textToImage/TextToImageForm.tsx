@@ -1,24 +1,28 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useMemo } from "react";
-import { generateImageWithText, generateImageWithImage } from "../actions";
-import { getImageUploadUrl, saveGeneratedImage } from "../actions";
-import ModelSelector from "./ModelSelector";
-import { AI_MODELS, getDefaultModel, getModelById } from "../data/models";
-import { SAMPLER_OPTIONS, getDefaultSampler } from "../data/samplers";
-import { VAE_OPTIONS, getDefaultVae } from "../data/vae";
-import { CollapsiblePanel } from "./CollapsiblePanel";
+import { generateImageWithText, generateImageWithImage } from "../../actions";
+import ModelSelector from "../shared/ModelSelector";
+import { AI_MODELS, getDefaultModel, getModelById } from "../../data/models";
+import { SAMPLER_OPTIONS, getDefaultSampler } from "../../data/samplers";
+import { VAE_OPTIONS, getDefaultVae } from "../../data/vae";
+import { CollapsiblePanel } from "../shared/CollapsiblePanel";
 import { CustomTooltip } from "@/components/ui/custom-tooltip";
-import { Switch } from "@/components/ui/switch";
-import ImageUploader from "./ImageUploader";
-import { useNotification } from "@/components/ui/notification";
-import { handleGlobalError, UserFacingError } from "@/app/lib/error-handling";
-import TokenCostDisplay from './TokenCostDisplay';
-import { calculateImageCost } from '../data/tokenUtils';
+import { Switch } from "@/components/ui/form/switch";
+import ImageUploader from "../shared/ImageUploader";
+import { useNotification } from "@/components/ui/feedback/notification";
+import { calculateImageCost } from '../../data/tokenUtils';
 import { encode } from 'gpt-tokenizer';
-import { SPECIAL_MODELS, filterSpecialModelsByCategory, getSpecialModelById } from '../data/specialModels';
+import { filterSpecialModelsByCategory, getSpecialModelById } from '../../data/specialModels';
 import { InfoIcon } from "lucide-react";
-import PromptTextarea from "./PromptTextarea";
+import PromptTextarea from "../shared/PromptTextarea";
+import { 
+  validateImageGeneration, 
+  handleImageGenerationError, 
+  processApiError, 
+  detectErrorType 
+} from '@/app/lib/image-generation-errors';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/form/select";
 
 interface TextToImageFormProps {
   onGenerationStart: () => void;
@@ -112,25 +116,119 @@ export default function TextToImageForm({
   
   // 로컬 스토리지에서 이전 입력 데이터 복원
   useEffect(() => {
-    // 모델 없으면 기본 모델 사용
-    if (!model) {
+    try {
+      // 로컬 스토리지에서 이전 설정 데이터 복원
+      const savedPrompt = localStorage.getItem('textPrompt');
+      const savedNegativePrompt = localStorage.getItem('negativePrompt');
+      const savedModel = localStorage.getItem('model');
+      const savedSize = localStorage.getItem('size');
+      const savedSteps = localStorage.getItem('steps');
+      const savedCfgScale = localStorage.getItem('cfgScale');
+      const savedSampler = localStorage.getItem('sampler');
+      const savedVae = localStorage.getItem('vae');
+      
+      // 프롬프트 복원
+      if (savedPrompt) {
+        setTextPrompt(savedPrompt);
+        setPromptTokenCount(calculateTokens(savedPrompt));
+      }
+      
+      if (savedNegativePrompt) {
+        setNegativePrompt(savedNegativePrompt);
+        setNegativeTokenCount(calculateTokens(savedNegativePrompt));
+      }
+      
+      // 모델 복원 (외부에서 전달된 modelId가 없을 경우에만)
+      const defaultModel = getDefaultModel().id;
+      if (!modelId) {
+        const modelToUse = savedModel || defaultModel;
+        setModel(modelToUse);
+        
+        // 부모 컴포넌트에 알림
+        if (onModelChange) {
+          onModelChange(modelToUse);
+        }
+      }
+      
+      // 이미지 크기 복원
+      if (savedSize) {
+        setSize(savedSize);
+      } else {
+        // 기본 크기 설정
+        setSize('768x768');
+        localStorage.setItem('size', '768x768');
+      }
+      
+      // 스텝 복원
+      if (savedSteps) {
+        const stepsValue = Number(savedSteps);
+        if (!isNaN(stepsValue)) {
+          setSteps(stepsValue);
+        } else {
+          setSteps(28);
+          localStorage.setItem('steps', '28');
+        }
+      } else {
+        setSteps(28);
+        localStorage.setItem('steps', '28');
+      }
+      
+      // CFG 스케일 복원
+      if (savedCfgScale) {
+        const cfgValue = Number(savedCfgScale);
+        if (!isNaN(cfgValue)) {
+          setCfgScale(cfgValue);
+        } else {
+          setCfgScale(7);
+          localStorage.setItem('cfgScale', '7');
+        }
+      } else {
+        setCfgScale(7);
+        localStorage.setItem('cfgScale', '7');
+      }
+      
+      // 샘플러 복원
+      if (savedSampler) {
+        setSampler(savedSampler);
+      } else {
+        const defaultSampler = getDefaultSampler();
+        setSampler(defaultSampler);
+        localStorage.setItem('sampler', defaultSampler);
+      }
+      
+      // VAE 복원
+      if (savedVae) {
+        setSelectedVae(savedVae);
+      } else {
+        const defaultVae = getDefaultVae();
+        setSelectedVae(defaultVae);
+        localStorage.setItem('vae', defaultVae);
+      }
+      
+      // 모델별 설정 복원
+      const savedModelSettings = localStorage.getItem('modelSpecificSettings');
+      if (savedModelSettings) {
+        try {
+          const parsedSettings = JSON.parse(savedModelSettings);
+          const modelToUse = modelId || savedModel || defaultModel;
+          if (parsedSettings[modelToUse]) {
+            setModelSpecificSettings(parsedSettings[modelToUse]);
+          }
+        } catch (error) {
+          console.error('모델별 설정 복원 실패:', error);
+        }
+      }
+    } catch (error) {
+      console.error('로컬 스토리지에서 설정 복원 중 오류 발생:', error);
+      // 오류 발생 시 기본값으로 설정
       setModel(getDefaultModel().id);
+      setSize('768x768');
+      setSteps(28);
+      setCfgScale(7);
+      setSampler(getDefaultSampler());
+      setSelectedVae(getDefaultVae());
     }
-    
-    // 로컬 스토리지에서 이전 입력 데이터 복원
-    const savedPrompt = localStorage.getItem('textPrompt');
-    const savedNegativePrompt = localStorage.getItem('negativePrompt');
-    
-    if (savedPrompt) {
-      setTextPrompt(savedPrompt);
-      setPromptTokenCount(calculateTokens(savedPrompt));
-    }
-    
-    if (savedNegativePrompt) {
-      setNegativePrompt(savedNegativePrompt);
-      setNegativeTokenCount(calculateTokens(savedNegativePrompt));
-    }
-  }, []);
+  }, [modelId, onModelChange, calculateTokens]);
   
 
   // 모델별 설정 변경 핸들러
@@ -230,11 +328,58 @@ export default function TextToImageForm({
     // 새 모델 정보 가져오기
     const newModelInfo = getModelById(newModelId);
     
-    // 새 모델에 맞는 샘플러 설정 
-    if (newModelInfo?.configOptions?.sampler) {
-      setSampler(newModelInfo.configOptions.sampler.default);
-      localStorage.setItem('sampler', newModelInfo.configOptions.sampler.default);
-      console.log(`모델 변경: ${newModelId}, 샘플러 기본값으로 설정: ${newModelInfo.configOptions.sampler.default}`);
+    // 이 모델에 대해 저장된 설정이 있는지 확인
+    try {
+      const savedModelSettings = localStorage.getItem('modelSpecificSettings');
+      if (savedModelSettings) {
+        const parsedSettings = JSON.parse(savedModelSettings);
+        if (parsedSettings[newModelId]) {
+          // 저장된 모델 특정 설정이 있으면 로드
+          setModelSpecificSettings(parsedSettings[newModelId]);
+          
+          // 기본 설정 중 모델별로 저장된 설정이 있으면 해당 값 사용
+          const modelSettings = parsedSettings[newModelId];
+          if (modelSettings.steps !== undefined) {
+            setSteps(Number(modelSettings.steps));
+          } else if (newModelInfo?.configOptions?.steps) {
+            setSteps(newModelInfo.configOptions.steps.default);
+          }
+          
+          if (modelSettings.cfgScale !== undefined) {
+            setCfgScale(Number(modelSettings.cfgScale));
+          } else if (newModelInfo?.configOptions?.cfgScale) {
+            setCfgScale(newModelInfo.configOptions.cfgScale.default);
+          }
+          
+          if (modelSettings.sampler !== undefined) {
+            setSampler(modelSettings.sampler);
+          } else if (newModelInfo?.configOptions?.sampler) {
+            setSampler(newModelInfo.configOptions.sampler.default);
+          }
+          
+          return; // 저장된 설정을 로드했으므로 여기서 종료
+        }
+      }
+    } catch (error) {
+      console.error('모델별 설정 로드 중 오류:', error);
+    }
+    
+    // 저장된 모델 설정이 없거나 오류가 발생한 경우 기본값으로 설정
+    if (newModelInfo?.configOptions) {
+      if (newModelInfo.configOptions.steps) {
+        setSteps(newModelInfo.configOptions.steps.default);
+        localStorage.setItem('steps', newModelInfo.configOptions.steps.default.toString());
+      }
+      
+      if (newModelInfo.configOptions.cfgScale) {
+        setCfgScale(newModelInfo.configOptions.cfgScale.default);
+        localStorage.setItem('cfgScale', newModelInfo.configOptions.cfgScale.default.toString());
+      }
+      
+      if (newModelInfo.configOptions.sampler) {
+        setSampler(newModelInfo.configOptions.sampler.default);
+        localStorage.setItem('sampler', newModelInfo.configOptions.sampler.default);
+      }
     }
   };
 
@@ -446,127 +591,148 @@ export default function TextToImageForm({
     }
   };
   
-  // 입력 유효성 검사 함수
+  // 입력 유효성 검사 함수를 새로운 유틸리티 사용하도록 수정
   const validateInputs = (): boolean => {
-    // 프롬프트 검사
-    if (!textPrompt || textPrompt.trim() === "") {
-      // 직접 알림 표시 대신 전역 에러 핸들러 사용
-      handleGlobalError(new UserFacingError("이미지 생성을 위해 프롬프트를 입력해주세요."));
-      return false;
-    }
-    
-    // 모델 검사
-    const currentModelId = modelId || model;
-    if (!currentModelId) {
-      // 직접 알림 표시 대신 전역 에러 핸들러 사용
-      handleGlobalError(new UserFacingError("이미지 생성을 위해 AI 모델을 선택해주세요."));
-      return false;
-    }
-    
-    // 이미지 비율 검사
-    if (!size || size === "") {
-      // 직접 알림 표시 대신 전역 에러 핸들러 사용
-      handleGlobalError(new UserFacingError("이미지 생성을 위해 이미지 비율을 선택해주세요."));
-      return false;
-    }
-    
-    return true;
+    return validateImageGeneration(
+      textPrompt, 
+      modelId || model, 
+      size, 
+      useFaceSwap, 
+      useFaceSwap ? faceImage : null
+    );
   };
 
   // 일반 모드 이미지 생성 핸들러
   const handleNormalGeneration = async () => {
     try {
-      // 생성 시작 상태 설정
+      // 기본 이미지 생성 시작 함수
       setIsGenerating(true);
       setLoadingState('generating');
-      
-      // 이미지 생성 프로세스 시작 알림
       onGenerationStart();
       
-      const apiUrl = "/api/generate";
-
-      // 중요한 검증
-      if (!textPrompt) {
-        const error = new UserFacingError("프롬프트를 입력해주세요");
-        handleGlobalError(error);
-        setIsGenerating(false);
+      // 선택한 모델 정보 불러오기 - 모델ID가 props로부터 오거나 state에서 옴
+      const actualModelId = modelId || model;
+      const selectedModel = getModelById(actualModelId);
+      
+      if (!selectedModel) {
+        handleImageGenerationError('model_missing', null, `모델을 찾을 수 없습니다: ${actualModelId}`);
         return;
       }
-
-      // API 요청 준비
-      const body = {
+      
+      // API 요청 데이터 준비
+      const sizeArray = size.split('x');
+      if (sizeArray.length !== 2) {
+        handleImageGenerationError('invalid_parameter', null, `잘못된 크기 형식: ${size}`);
+        return;
+      }
+      
+      const width = parseInt(sizeArray[0], 10);
+      const height = parseInt(sizeArray[1], 10);
+      
+      if (isNaN(width) || isNaN(height)) {
+        handleImageGenerationError('invalid_parameter', null, `잘못된 크기 값: ${size}`);
+        return;
+      }
+      
+      // 추가 설정 매개변수 구성
+      const modelConfig: Record<string, any> = {
+        steps: steps,
+        cfgScale: cfgScale,
+        sampler: sampler,
+      };
+      
+      // 모델별 설정 추가
+      if (selectedModel.configOptions) {
+        Object.entries(selectedModel.configOptions).forEach(([key, config]) => {
+          if (!['steps', 'cfgScale', 'sampler'].includes(key)) {
+            if (modelSpecificSettings[key] !== undefined) {
+              modelConfig[key] = modelSpecificSettings[key];
+            } else if (config.default !== undefined) {
+              modelConfig[key] = config.default;
+            }
+          }
+        });
+      }
+      
+      // VAE 설정 추가
+      if (selectedVae && selectedVae !== 'default') {
+        modelConfig.vae = selectedVae;
+      }
+      
+      // 사용자에게 생성 시작 알림
+      showNotification({
+        title: '이미지 생성 시작',
+        message: `${width}x${height} 크기의 이미지를 생성하고 있습니다. 모델: ${selectedModel.name}`,
+      });
+      
+      console.log('이미지 생성 요청:', {
         prompt: textPrompt,
         negativePrompt,
-        modelId: modelId || model,
-        width: parseInt(size.split('x')[0]),
-        height: parseInt(size.split('x')[1]),
-        steps: Number(steps),
-        cfgScale: Number(cfgScale),
-        sampler: sampler,
-        vae: selectedVae,
-        saveMetadata: false // 메타데이터 저장 비활성화 (기본값)
-      };
-
-      // API 요청 - 폴링 없이 완료될 때까지 대기
-      console.log("API 요청 시작 (이미지 생성이 완료될 때까지 대기)...");
-      const response = await fetch(apiUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(body),
+        size: `${width}x${height}`,
+        model: actualModelId,
+        modelConfig
       });
 
-      // 응답 처리
-      if (!response.ok) {
-        const errorData = await response.json();
-        handleGlobalError(new UserFacingError(errorData.error || "이미지 생성 중 오류가 발생했습니다"));
-        throw new Error(errorData.error || "이미지 생성 중 오류가 발생했습니다");
-      }
-
-      // API 응답 처리 - 이제 완료된 이미지 데이터가 바로 반환됨
-      const data = await response.json();
-      console.log("이미지 생성 완료, 서버 응답:", data);
+      // 서버 API 호출
+      const response = await generateImageWithText({
+        prompt: textPrompt, 
+        negativePrompt, 
+        width, 
+        height, 
+        modelId: actualModelId,
+        ...modelConfig
+      });
       
-      if (!data.success) {
-        handleGlobalError(new UserFacingError(data.error || "이미지 생성에 실패했습니다"));
-        throw new Error(data.error || "이미지 생성에 실패했습니다");
-      }
-
-      // 이미지 데이터 확인
-      if (!data.image || !data.image.url) {
-        handleGlobalError(new UserFacingError("유효한 이미지 URL이 반환되지 않았습니다"));
-        throw new Error("유효한 이미지 URL이 반환되지 않았습니다");
-      }
-
-      // 응답에서 이미지 ID와 URL 추출
-      const imageId = data.image.id || `temp-${Date.now()}`;
-      const imageUrl = data.image.url;
+      // 응답 로깅
+      console.log('API 응답:', response);
       
-      // 이미지 URL 타입 검증
-      if (typeof imageUrl !== 'string') {
-        console.error("생성된 이미지 URL이 문자열이 아닙니다:", imageUrl);
-        handleGlobalError(new UserFacingError("생성된 이미지 URL이 유효하지 않습니다"));
-        throw new Error("생성된 이미지 URL이 유효하지 않습니다");
+      if (!response || !response.success) {
+        // 향상된 에러 처리
+        const errorMessage = response?.error || '이미지 생성에 실패했습니다.';
+        const errorType = detectErrorType(errorMessage);
+        handleImageGenerationError(errorType, new Error(errorMessage));
+        return;
       }
       
-      console.log("생성된 이미지:", { id: imageId, url: imageUrl.substring(0, 50) + "..." });
-
-      // 성공 콜백 호출
+      // 이미지 URL 추출
+      const imageUrl = extractImageUrl(response);
+      if (!imageUrl) {
+        handleImageGenerationError('api_error', null, '응답에서 이미지 URL을 찾을 수 없습니다.');
+        return;
+      }
+      
+      // 생성된 이미지 ID 추출 (response 타입에 맞춰 안전하게 처리)
+      const imageId = (response as any).id || `img-${Date.now()}`;
+      
+      // 생성에 성공한 후에도 현재 선택된 모델과 설정 유지
+      // localStorage에 현재 상태 저장
+      localStorage.setItem('model', actualModelId);
+      // 모델 상태도 업데이트하여 UI에 반영
+      setModel(actualModelId);
+      localStorage.setItem('size', size);
+      localStorage.setItem('steps', steps.toString());
+      localStorage.setItem('cfgScale', cfgScale.toString());
+      localStorage.setItem('sampler', sampler);
+      
+      // 모델별 설정도 로컬 스토리지에 저장
+      const savedSettings = JSON.parse(localStorage.getItem('modelSpecificSettings') || '{}');
+      savedSettings[actualModelId] = { ...modelSpecificSettings };
+      localStorage.setItem('modelSpecificSettings', JSON.stringify(savedSettings));
+      
+      // 부모 컴포넌트에 생성 완료 신호 보내기
       onGenerationComplete(imageUrl, imageId);
-
-      // 생성 상태 초기화
-      setIsGenerating(false);
-      setLoadingState('idle');
       
-    } catch (error: any) {
-      console.error("이미지 생성 오류:", error);
-      
-      // 전역 에러 핸들러로 에러 전달 (이중 알림 방지 체크)
-      if (!(error instanceof UserFacingError)) {
-        handleGlobalError(error);
-      }
-      
+      // 알림
+      showNotification({
+        title: '이미지 생성 완료',
+        message: '이미지가 성공적으로 생성되었습니다.',
+      });
+    } catch (error) {
+      console.error('이미지 생성 오류:', error);
+      // 향상된 에러 처리 사용
+      processApiError(error, '이미지 생성 중 오류가 발생했습니다.');
+      onError((error as Error).message);
+    } finally {
       setIsGenerating(false);
       setLoadingState('idle');
     }
@@ -575,112 +741,194 @@ export default function TextToImageForm({
   // Face Swap을 적용한 이미지 생성 처리 - 유사한 방식으로 수정
   const handleGenerationWithFaceSwap = async () => {
     try {
-      // 입력 유효성 검사
-      if (!validateInputs()) {
-        return;
-      }
-      
-      // Face Swap 이미지 검사
+      // Face Swap을 위한 검증
       if (!faceImage || !faceImagePreview) {
-        handleGlobalError(new UserFacingError("Face Swap을 위해 얼굴 참조 이미지를 업로드해주세요."));
+        handleImageGenerationError('face_image_missing');
         return;
       }
-
-      onGenerationStart();
+      
+      if (!textPrompt) {
+        handleImageGenerationError('prompt_missing');
+        return;
+      }
+      
+      // 상태 업데이트
       setIsGenerating(true);
+      setIsProcessingFaceSwap(false);
       setLoadingState('generating');
+      onGenerationStart();
       
-      // 현재 선택된 모델 ID 가져오기
-      const currentModelId = modelId || model;
+      // 선택한 모델 정보 불러오기 - 모델ID가 props로부터 오거나 state에서 옴
+      const actualModelId = modelId || model;
+      const selectedModel = getModelById(actualModelId);
       
-      // 1. 얼굴 이미지를 base64로 변환 (병렬 처리)
-      const faceImagePromise = faceImage ? uploadFaceImage(faceImage) : Promise.resolve(null);
+      if (!selectedModel) {
+        handleImageGenerationError('model_missing', null, `모델을 찾을 수 없습니다: ${actualModelId}`);
+        return;
+      }
       
-      // 2. 이미지 생성 요청
-      const requestBody = {
-        prompt: textPrompt,
-        negativePrompt,
-        modelId: currentModelId,
-        width: parseInt(size.split('x')[0]),
-        height: parseInt(size.split('x')[1]),
-        steps,
-        cfgScale,
-        sampler,
-        vae: selectedVae,
+      // API 요청 데이터 준비
+      const sizeArray = size.split('x');
+      if (sizeArray.length !== 2) {
+        handleImageGenerationError('invalid_parameter', null, `잘못된 크기 형식: ${size}`);
+        return;
+      }
+      
+      const width = parseInt(sizeArray[0], 10);
+      const height = parseInt(sizeArray[1], 10);
+      
+      if (isNaN(width) || isNaN(height)) {
+        handleImageGenerationError('invalid_parameter', null, `잘못된 크기 값: ${size}`);
+        return;
+      }
+      
+      // 추가 설정 매개변수 구성
+      const modelConfig: Record<string, any> = {
+        steps: steps,
+        cfgScale: cfgScale,
+        sampler: sampler,
       };
       
-      console.log("Face Swap 이미지 생성 요청:", requestBody);
+      // 모델별 설정 추가
+      if (selectedModel.configOptions) {
+        Object.entries(selectedModel.configOptions).forEach(([key, config]) => {
+          if (!['steps', 'cfgScale', 'sampler'].includes(key)) {
+            if (modelSpecificSettings[key] !== undefined) {
+              modelConfig[key] = modelSpecificSettings[key];
+            } else if (config.default !== undefined) {
+              modelConfig[key] = config.default;
+            }
+          }
+        });
+      }
       
-      // API 호출 - 이미지 생성이 완료될 때까지 대기
-      console.log("Face Swap API 요청 시작 (이미지 생성이 완료될 때까지 대기)...");
-      const response = await fetch("/api/generate", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(requestBody),
+      // VAE 설정 추가
+      if (selectedVae && selectedVae !== 'default') {
+        modelConfig.vae = selectedVae;
+      }
+      
+      // 사용자에게 알림
+      showNotification({
+        title: '이미지 생성 중',
+        message: '얼굴 참조 이미지를 적용한 이미지를 생성합니다',
       });
       
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => null);
-        throw new Error(errorData?.error || `API 오류: ${response.status}`);
-      }
+      // 1. 기본 이미지 생성
+      console.log('기본 이미지 생성 요청:', {
+        prompt: textPrompt,
+        negativePrompt,
+        size: `${width}x${height}`,
+        model: actualModelId,
+        modelConfig
+      });
       
-      const result = await response.json();
-      console.log("Face Swap 이미지 생성 완료:", result);
+      const response = await generateImageWithText({
+        prompt: textPrompt,
+        negativePrompt,
+        width,
+        height,
+        modelId: actualModelId,
+        ...modelConfig
+      });
       
-      // 이미지 URL 확인 및 추출
-      if (!result.success || !result.image || !result.image.url) {
-        throw new Error("이미지 생성에 실패했습니다. 서버 응답이 유효하지 않습니다.");
-      }
+      // 응답 로깅
+      console.log('기본 이미지 생성 응답:', response);
       
-      const imageUrl = result.image.url;
-      const imageId = result.image.id || `temp-${Date.now()}`;
-      
-      // 이미지 URL 타입 검증
-      if (typeof imageUrl !== 'string') {
-        console.error("생성된 이미지 URL이 문자열이 아닙니다:", imageUrl);
-        throw new Error("생성된 이미지 URL이 유효하지 않습니다.");
-      }
-      
-      console.log("생성된 이미지:", { id: imageId, url: imageUrl.substring(0, 50) + "..." });
-      
-      // 3. 얼굴 이미지 base64 데이터 대기
-      const faceImageData = await faceImagePromise;
-      
-      // 얼굴 이미지가 없다면 생성된 이미지만 반환
-      if (!faceImageData) {
-        onGenerationComplete(imageUrl, imageId);
-        setIsGenerating(false);
-        setLoadingState('idle');
+      if (!response || !response.success) {
+        // 향상된 에러 처리
+        const errorMessage = response?.error || '이미지 생성에 실패했습니다';
+        const errorType = detectErrorType(errorMessage);
+        handleImageGenerationError(errorType, new Error(errorMessage));
         return;
       }
       
-      // 4. Face Swap 적용 (base64 데이터 직접 사용)
-      console.log("Face Swap 적용 시작...");
-      setLoadingState('saving');
-      const swappedImageUrl = await applyFaceSwap(
-        imageUrl, 
-        faceImageData, 
-        faceSwapModelId, 
-        { ...faceSwapOptions, strength: faceSwapStrength }
-      );
-      
-      // 5. 결과 처리
-      onGenerationComplete(swappedImageUrl, imageId);
-      
-      // 생성 상태 초기화
-      setIsGenerating(false);
-      setLoadingState('idle');
-      
-    } catch (error: any) {
-      console.error("이미지 생성 오류:", error);
-      if (!(error instanceof UserFacingError)) {
-        handleGlobalError(error instanceof Error ? error : new Error(error.message || "이미지 생성 중 오류가 발생했습니다."));
+      // 이미지 URL 추출
+      const baseImageUrl = extractImageUrl(response);
+      if (!baseImageUrl) {
+        handleImageGenerationError('api_error', null, '응답에서 이미지 URL을 찾을 수 없습니다');
+        return;
       }
       
+      // 임시 이미지 URL 업데이트 (생성 단계 표시용)
+      setTempImageUrl(baseImageUrl);
+      
+      // 2. Face Swap 처리 시작
+      console.log('Face Swap 처리 시작');
+      setIsProcessingFaceSwap(true);
+      
+      // 얼굴 이미지 데이터 URL 생성
+      const faceDataUrl = await uploadFaceImage(faceImage);
+      
+      // Face Swap 적용
+      console.log('Face Swap 요청:', {
+        targetImageUrl: baseImageUrl,
+        sourceImageUrl: faceDataUrl.substring(0, 30) + '...',
+        modelId: faceSwapModelId,
+        options: {
+          strength: faceSwapStrength,
+          ...faceSwapOptions
+        }
+      });
+      
+      // Face Swap API 호출
+      const faceSwappedImageUrl = await applyFaceSwap(
+        baseImageUrl, 
+        faceDataUrl,
+        faceSwapModelId,
+        {
+          strength: faceSwapStrength,
+          ...faceSwapOptions
+        }
+      );
+      
+      if (!faceSwappedImageUrl) {
+        handleImageGenerationError('api_error', null, 'Face Swap 처리 중 오류가 발생했습니다');
+        return;
+      }
+      
+      // 생성된 이미지 ID 생성
+      const imageId = `faceswap-${Date.now()}`;
+      
+      // 생성에 성공한 후에도 현재 선택된 모델과 설정 유지
+      // localStorage에 현재 상태 저장
+      localStorage.setItem('model', actualModelId);
+      localStorage.setItem('size', size);
+      localStorage.setItem('steps', steps.toString());
+      localStorage.setItem('cfgScale', cfgScale.toString());
+      localStorage.setItem('sampler', sampler);
+      
+      // Face Swap 설정도 로컬 스토리지에 저장
+      localStorage.setItem('faceSwapModelId', faceSwapModelId);
+      localStorage.setItem('faceSwapStrength', faceSwapStrength.toString());
+      localStorage.setItem('faceSwapOptions', JSON.stringify(faceSwapOptions));
+      
+      // 모델별 설정도 로컬 스토리지에 저장
+      const savedSettings = JSON.parse(localStorage.getItem('modelSpecificSettings') || '{}');
+      savedSettings[actualModelId] = { ...modelSpecificSettings };
+      localStorage.setItem('modelSpecificSettings', JSON.stringify(savedSettings));
+      
+      // 최종 이미지 URL 반환
+      console.log('Face Swap 처리 완료:', faceSwappedImageUrl.substring(0, 30) + '...');
+      
+      // 부모 컴포넌트에 완료 신호 보내기
+      onGenerationComplete(faceSwappedImageUrl, imageId);
+      
+      // 완료 알림
+      showNotification({
+        title: 'Face Swap 완료',
+        message: '얼굴 적용 이미지 생성이 완료되었습니다',
+      });
+      
+    } catch (error) {
+      console.error('Face Swap 이미지 생성 오류:', error);
+      // 향상된 에러 처리 사용
+      processApiError(error, 'Face Swap 처리 중 오류가 발생했습니다.');
+      onError((error as Error).message);
+    } finally {
       setIsGenerating(false);
+      setIsProcessingFaceSwap(false);
       setLoadingState('idle');
+      setTempImageUrl(null);
     }
   };
   
@@ -808,7 +1056,7 @@ export default function TextToImageForm({
     if (useFaceSwap && faceImage) {
       // Face Swap 이미지 검사
       if (!faceImage || !faceImagePreview) {
-        handleGlobalError(new UserFacingError("Face Swap을 위해 얼굴 참조 이미지를 업로드해주세요."));
+        handleImageGenerationError('face_image_missing');
         return;
       }
       
@@ -821,75 +1069,140 @@ export default function TextToImageForm({
 
   // Token cost display 요소
   const TokenCostInfo = () => {
-    // 크기 파싱
-    const [width, height] = size ? size.split('x').map(Number) : [768, 768];
+    const currModel = getModelById(modelId || model);
     
-    // 가격 계산 전 입력값 유효성 검사
-    if (!size || !modelId && !model) {
-      return (
-        <CustomTooltip
-          title="토큰 비용 정보"
-          description="이미지 크기와 모델을 선택하면 토큰 비용이 표시됩니다."
-          content={
-            <div className="space-y-1.5 text-xs">
-              <div className="text-center text-gray-300">크기와 모델을 선택해주세요</div>
-            </div>
+    // 모델의 토큰 가격 표시 (models.ts에서 price 정보 활용)
+    if (!currModel || !currModel.tokenPrice) {
+      // 문자열 형태의 price가 있으면 변환 시도
+      if (currModel && currModel.price && typeof currModel.price === 'string') {
+        try {
+          // 달러 표시 제거하고 숫자만 추출
+          const priceString = currModel.price.replace(/[^0-9.]/g, '');
+          const priceNum = parseFloat(priceString);
+          
+          if (!isNaN(priceNum)) {
+            // 토큰 환율 적용 (imageModels.ts의 로직과 유사)
+            const TOKEN_EXCHANGE_RATE = 1000;
+            const COST_MULTIPLIER = 1.8;
+            const tokenPrice = Math.round(priceNum * TOKEN_EXCHANGE_RATE * COST_MULTIPLIER);
+            
+            return (
+              <span className="text-xs text-white/80 bg-black/20 px-2 py-1 rounded-full">
+                {tokenPrice} 토큰
+              </span>
+            );
           }
-        >
-          <span className="flex items-center gap-1">
-            <InfoIcon className="w-4 h-4 text-orange-500" />
-          </span>
-        </CustomTooltip>
-      );
+        } catch (e) {
+          console.error('가격 변환 오류:', e);
+        }
+      }
+      
+      // 가격 정보가 없거나 변환 실패 시
+      return null;
     }
     
-    // 토큰 비용 계산
-    const costInfo = calculateImageCost({
-      modelId: modelId || model,
-      width, 
-      height,
-      faceSwapModelId: useFaceSwap ? faceSwapModelId : undefined
-    });
+    return (
+      <span className="text-xs text-white/80 bg-black/20 px-2 py-1 rounded-full">
+        {currModel.tokenPrice} 토큰
+      </span>
+    );
+  };
+
+  // 이미지 크기 설정 UI 렌더링 함수
+  const renderSizeSettings = () => {
+    // 현재 선택된 모델에 대한 권장 비율 정보
+    const currModel = getModelById(modelId || model);
+    
+    // 현재 크기 값 파싱
+    const [width, height] = size.split('x').map(Number);
+    
+    // 모델에 대한 권장 비율 정보 텍스트
+    const getRatioInfoText = () => {
+      if (!currModel) return '';
+      
+      // 모델 이름에 따른 권장 비율 정보
+      const modelInfo: Record<string, string> = {
+        'Pony-Realism-v2.2': '1:1 (정사각형) 비율 권장',
+        'pony-sdxl': '1:1 (정사각형) 또는 3:4 (세로) 비율 권장',
+        'pony-nai3': '3:4 (세로) 비율 권장',
+        'flux-schnell': '1:1 (정사각형) 비율 권장',
+        'flux-pro': '1:1 (정사각형) 비율 권장',
+        'Realistic Vision 5.1': '1:1 또는 4:3 비율 권장',
+        'realism-xl': '1:1 또는 3:4 비율 권장',
+        'Realism-IL-v3': '1:1 (정사각형) 비율 권장'
+      };
+      
+      return modelInfo[currModel.id] || '1:1 (정사각형) 비율 기본 권장';
+    };
     
     return (
-      <CustomTooltip
-        title="토큰 비용 정보"
-        description="이 이미지 생성에 사용되는 토큰 비용입니다."
-        content={
-          <div className="space-y-1.5 text-xs">
-            {costInfo.breakdown.map((item: { name: string; tokens: number }, index: number) => (
-              <div key={index} className="flex justify-between">
-                <span className="text-gray-300">{item.name}</span>
-                <span className="font-medium text-gray-200">{item.tokens.toLocaleString()} token</span>
-              </div>
-            ))}
-            <div className="border-t border-gray-700 mt-1 pt-1 flex justify-between">
-              <span className="font-medium text-white">총 비용</span>
-              <span className="font-bold text-orange-500">
-                {costInfo.total.toLocaleString()} token
-              </span>
-            </div>
+      <div className="space-y-2 mb-4">
+        <div className="flex justify-between items-center">
+          <label className="text-sm font-medium">이미지 크기</label>
+          <span className="text-xs text-gray-400">
+            {getRatioInfoText()}
+          </span>
+        </div>
+        
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Select
+              value={width?.toString() || "768"}
+              onValueChange={(val: string) => {
+                const newSize = `${val}x${height || 768}`;
+                setSize(newSize);
+                localStorage.setItem('size', newSize);
+              }}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="너비" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="512">512px</SelectItem>
+                <SelectItem value="768">768px</SelectItem>
+                <SelectItem value="1024">1024px</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-gray-400">너비</p>
           </div>
-        }
-      >
-        <span className="flex items-center gap-1">
-          <InfoIcon className="w-4 h-4 text-orange-500" />
-          <span className="text-sm font-medium text-orange-500">{costInfo.total.toLocaleString()}</span>
-        </span>
-      </CustomTooltip>
+          
+          <div className="space-y-2">
+            <Select
+              value={height?.toString() || "768"}
+              onValueChange={(val: string) => {
+                const newSize = `${width || 768}x${val}`;
+                setSize(newSize);
+                localStorage.setItem('size', newSize);
+              }}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="높이" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="512">512px</SelectItem>
+                <SelectItem value="768">768px</SelectItem>
+                <SelectItem value="1024">1024px</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-gray-400">높이</p>
+          </div>
+        </div>
+      </div>
     );
   };
 
   return (
     <form onSubmit={handleFormSubmit} className="space-y-4">
 
-      {/* 모델 선택 */}
-      <ModelSelector
-        selectedModel={selectedModel}
+      {/* 모델 선택기 */}
+      <ModelSelector 
+        selectedModel={modelId || model}
         onModelChange={handleModelChange}
       />
+      
+      {/* 이미지 크기 설정 */}
+      {renderSizeSettings()}
 
-    
       {/* 프롬프트 입력 영역 - 커스텀 컴포넌트 사용 */}
       <PromptTextarea 
         prompt={textPrompt}
@@ -908,39 +1221,16 @@ export default function TextToImageForm({
         negativeTokenLimit={500}
       />
 
-{/* 이미지 비율 선택 */}
-      <div className="space-y-2">
-        <label className="block text-sm font-medium">이미지 비율</label>
-        <div className="grid grid-cols-4 gap-2">
-          {sizePresets.map((preset) => (
-            <button
-              key={`size-preset-${preset.value}`}
-              type="button"
-              className={`p-2 rounded-lg border text-sm ${
-                size === preset.value 
-                  ? 'border-orange-500 bg-orange-500/20 text-orange-500' 
-                  : 'border-neutral-700 hover:border-neutral-600'
-              }`}
-              onClick={() => {
-                setSize(preset.value);
-                localStorage.setItem('size', preset.value);
-              }}
-            >
-              {preset.label}
-            </button>
-          ))}
-        </div>
-      </div>
       {/* 고급 설정 */}
       <CollapsiblePanel title="고급 설정" defaultOpen={false}>
         {/* 얼굴 참조 이미지 섹션 */}
         <div className="border border-neutral-800 rounded-lg p-4">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
-              <h3 className="text-sm font-medium">얼굴 참조 이미지</h3>
+              <h3 className="text-sm font-medium">Face swap (테스트 중)</h3>
               <CustomTooltip 
-                title="얼굴 참조" 
-                description="생성된 이미지에 참조 이미지의 얼굴을 적용합니다. 선명한 얼굴 사진을 사용하세요."
+                title="fece swap" 
+                description="생성된 이미지에 참조 이미지의 얼굴을 적용. 자연스럽지 않아 추천하지 않습니다."
               >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-neutral-400" viewBox="0 0 20 20" fill="currentColor">
                   <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />

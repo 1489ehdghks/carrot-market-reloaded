@@ -6,8 +6,8 @@ import { CustomTooltip } from "@/components/ui/custom-tooltip";
 import ImagePublishButton from "./ImagePublishButton";
 import { Button } from "@/components/ui/button";
 import { DownloadIcon, RefreshCcw, Share2 } from "lucide-react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { publishImage } from "../actions";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/dataDisplay/tabs";
+import { publishImage } from "../../actions";
 import { toast } from "sonner";
 import EmptyImageState from "./EmptyImageState";
 

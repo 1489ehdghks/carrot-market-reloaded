@@ -1,9 +1,9 @@
 "use client";
 
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/dataDisplay/tabs";
 import { useState } from "react";
 import { ProductType, ProductCategory, getProducts } from "@/app/products/actions";
-import ProductGrid from "@/components/product-grid";
+import ProductGrid from "@/components/feature/product/product-grid";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { PlusIcon } from "@heroicons/react/24/solid";
 import Link from "next/link";

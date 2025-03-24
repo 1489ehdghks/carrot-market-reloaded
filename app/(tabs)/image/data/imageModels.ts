@@ -7,6 +7,13 @@ export interface ImageModel {
   price: number; // 달러 기준 API 호출 비용
   tokenPrice?: number; // 계산된 토큰 가격 (자동 계산)
   
+  // 필요한 이미지 타입 정의
+  requiredImages: {
+    sourceImage?: boolean; // 원본 이미지 필요 여부
+    faceImage?: boolean;   // 얼굴 참조 이미지 필요 여부
+    // 추후 다른 이미지 타입을 여기에 추가할 수 있음
+  };
+  
   // 모델 기능 정보
   features: {
     quality: 'low' | 'medium' | 'high' | 'ultra';
@@ -34,10 +41,16 @@ export const IMAGE_MODELS: ImageModel[] = [
   // InstantID 모델 (얼굴 특성 적용)
   {
     id: "instantId",
-    name: "InstantID (얼굴 특성 적용)",
-    description: "이미지에서 얼굴 특성을 추출하여 다른 이미지에 적용합니다. 인물 사진을 다양한 스타일로 변환하세요.",
+    name: "InstantID (face swap)",
+    description: "이미지에서 얼굴 특성을 추출하여 적용합니다.",
     apiModel: "zsxkib/instant-id-ipadapter-plus-face:71ce3f946b93b23a4a927d84969f2fc9c9e3bb3f19dd66d38c74cf543890461e",
     price: 0.025,
+    
+    // InstantID는 얼굴 참조 이미지만 필요
+    requiredImages: {
+      sourceImage: false,
+      faceImage: true
+    },
     
     features: {
       quality: 'high',
@@ -132,6 +145,12 @@ export const IMAGE_MODELS: ImageModel[] = [
     apiModel: "stability/sdxl-style-transformer:2c311d41ce53f629f65e23ce1801d3eed2a2eb2ab308e8c2790b5e67b407b459",
     price: 0.018,
     
+    // 스타일 변환은 원본 이미지만 필요
+    requiredImages: {
+      sourceImage: true,
+      faceImage: false
+    },
+    
     features: {
       quality: 'high',
       speed: 'medium'
@@ -173,6 +192,12 @@ export const IMAGE_MODELS: ImageModel[] = [
     apiModel: "nightmareai/real-esrgan:42fed1c4974146d4d2414e2be2c5277c7fcf05fcc3a73abf41610695738c1d7b",
     price: 0.01,
     
+    // 업스케일러는 원본 이미지만 필요
+    requiredImages: {
+      sourceImage: true,
+      faceImage: false
+    },
+    
     features: {
       quality: 'high',
       speed: 'fast'
@@ -213,6 +238,12 @@ export const IMAGE_MODELS: ImageModel[] = [
     apiModel: "model-lab/background-remover:39d862aaa594a6c2b96f9056f0065165a9307e97294548e44ace29a8be7139b4",
     price: 0.008,
     
+    // 배경 제거는 원본 이미지만 필요
+    requiredImages: {
+      sourceImage: true,
+      faceImage: false
+    },
+    
     features: {
       quality: 'high',
       speed: 'ultra'
@@ -246,6 +277,12 @@ export const IMAGE_MODELS: ImageModel[] = [
     description: "이미지 캔버스를 확장하여 더 넓은 배경이나 컨텍스트를 추가합니다.",
     apiModel: "lstein/outpainting-v1:0fb4818cc9583bc5fb0bd931c8fc2446bc1b487a0a75b40a660c8a19d89fc031",
     price: 0.02,
+    
+    // 이미지 확장은 원본 이미지만 필요
+    requiredImages: {
+      sourceImage: true,
+      faceImage: false
+    },
     
     features: {
       quality: 'high',
@@ -285,11 +322,11 @@ export const IMAGE_MODELS: ImageModel[] = [
   }
 ];
 
-// 토큰 환율 설정 (1000토큰 = $1)
+// 토큰 환율 설정 
 export const TOKEN_EXCHANGE_RATE = 1000;
 
-// 추가 비용 배율 (기본 비용의 150%)
-export const COST_MULTIPLIER = 1.5;
+// 추가 비용 배율 
+export const COST_MULTIPLIER = 1.8;
 
 /**
  * 달러 가격을 토큰으로 변환합니다.

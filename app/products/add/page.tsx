@@ -1,13 +1,13 @@
 "use client"
 import { useState } from "react";
-import Input from "@/components/input";
+import Input from "@/components/feature/common/input";
 import { PhotoIcon } from "@heroicons/react/24/outline";
 import { uploadProduct, getUploadUrl } from "./actions";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
 import { productSchema, ProductType } from "./schema";
-import FormBtn from "@/components/button";
+import FormBtn from "@/components/feature/common/button";
 
 export default function AddProduct() {
     const router = useRouter();

@@ -4,8 +4,8 @@ import React, { useState } from 'react';
 import Image from 'next/image';
 import { ClipboardIcon, ArrowDownTrayIcon, PencilIcon } from '@heroicons/react/24/outline';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/dataDisplay/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/dataDisplay/tabs';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 

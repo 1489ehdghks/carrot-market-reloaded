@@ -1,5 +1,5 @@
 import MainLayout from "@/components/layout/main-layout";
-import TabBar from "@/components/tab-bar";
+import TabBar from "@/components/feature/common/tab-bar";
 
 export default function Layout({
   children,

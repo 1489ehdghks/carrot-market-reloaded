@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { CustomTooltip } from "@/components/ui/custom-tooltip";
-import { AI_MODELS, CATEGORY_NAMES, AIModel, getModelById, getDefaultModel } from "../data/models";
+import { AI_MODELS, CATEGORY_NAMES, AIModel, getModelById, getDefaultModel } from "../../data/models";
 
 interface ModelSelectorProps {
   selectedModel: string | AIModel;

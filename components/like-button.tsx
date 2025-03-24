@@ -4,7 +4,7 @@ import { HandThumbUpIcon as OutlineHandThumbUpIcon } from "@heroicons/react/24/o
 import { useOptimistic, useState, useTransition } from "react";
 import { dislikePost } from "@/app/life/[id]/actions";
 import { likePost } from "@/app/life/[id]/actions";
-import Alert from '@/components/alert';
+import Alert from '@/components/feature/common/alert';
 
 interface LikeButtonProps{
     isLiked:boolean;

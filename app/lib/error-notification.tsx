@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { useNotification } from "@/components/ui/notification";
+import { useNotification } from "@/components/ui/feedback/notification";
 import { UserFacingError, SystemError, registerErrorHandler } from "./error-handling";
 
 /**

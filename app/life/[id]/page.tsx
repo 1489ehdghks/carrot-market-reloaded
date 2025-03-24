@@ -6,7 +6,7 @@ import { formatToTimeAgo } from "@/lib/utils";
 import Image from "next/image";
 import { unstable_cache as nextCache } from "next/cache";
 import LikeButton from "@/components/like-button";
-import CommentForm from "@/components/comment-form";
+import CommentForm from "@/components/feature/common/comment-form";
 import CommentList from "@/components/comment-list";
 import { getCachedComments } from "./actions";
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { publishImage } from "../actions";
+import { publishImage } from "../../actions";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 

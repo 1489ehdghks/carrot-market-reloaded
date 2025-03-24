@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Slider } from "@/components/ui/slider";
-import { Label } from "@/components/ui/label";
+import { Slider } from "@/components/ui/form/slider";
+import { Label } from "@/components/ui/form/label";
 
 interface SettingSliderProps {
   label: string;

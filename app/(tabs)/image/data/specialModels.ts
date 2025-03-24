@@ -35,7 +35,7 @@ export const SPECIAL_MODELS: SpecialModel[] = [
   // Face Swap 모델
   {
     id: "faceSwap",
-    name: "default Face Swap",
+    name: "Face Swap",
     description: "기본 얼굴 교체 모델로, 한 이미지의 얼굴을 다른 이미지의 얼굴로 교체합니다.",
     category: "faceswap",
     apiModel: "cdingram/face-swap:d1d6ea8c8be89d664a07a457526f7128109dee7030fdac424788d762c71ed111",

@@ -1,6 +1,6 @@
 "use client";
-import Input from "@/components/input";
-import Button from "@/components/button";
+import Input from "@/components/feature/common/input";
+import Button from "@/components/feature/common/button";
 import { useActionState } from "react";
 import { smsLogin } from "./actions";
 

@@ -43,9 +43,6 @@ export default function EmptyImageState({
           </div>
         </div>
         
-        <div className="pt-4">
-          <div className="text-xs text-orange-400 animate-bounce">AI 마법사가 준비됐어요! ✨</div>
-        </div>
         
         {showUploadButton && (
           <div className="pt-6">

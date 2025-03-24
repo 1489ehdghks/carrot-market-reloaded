@@ -11,10 +11,10 @@ import {
   DialogClose
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/form/input';
+import { Label } from '@/components/ui/form/label';
 import { toast } from 'sonner';
-import { publishImageWithTitle } from '../actions';
+import { publishImageWithTitle } from '../../actions';
 
 interface PublishDialogProps {
   imageId: number | string | null;
