@@ -1,6 +1,7 @@
 import HeroSection from "./sections/HeroSection";
 import FeaturesSection from "./sections/FeaturesSection";
 import SpecialFeaturesSection from "./sections/SpecialFeaturesSection";
+import Footer from "@/widgets/landing/Footer";
 
 export default function Home() {
   return (
@@ -8,6 +9,7 @@ export default function Home() {
       <HeroSection />
       <FeaturesSection />
       <SpecialFeaturesSection />
+      <Footer />
     </div>
   );
 }
