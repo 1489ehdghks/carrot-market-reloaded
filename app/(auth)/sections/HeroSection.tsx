@@ -37,9 +37,10 @@ export default function HeroSection() {
     setLeaves(createInitialLeaves());
   }, []);
 
-  // 패럴랙스 효과 (스크롤 기반)
-  const y = useTransform(scrollY, [0, 1000], [0, 200]);
-  const opacity = useTransform(scrollY, [0, 300], [1, 0]);
+  // 패럴랙스 효과 (스크롤 기반) - 효과 감소
+  const y = useTransform(scrollY, [0, 800], [0, 100]); // 효과 절반으로 감소
+  const opacity = useTransform(scrollY, [0, 400], [1, 0]); // 투명도 변화 범위 증가
+  const overlayOpacity = useTransform(scrollY, [0, 400], [0.6, 1]); // 배경 오버레이 투명도
 
   // 화면 크기 감지
   useEffect(() => {
@@ -64,10 +65,10 @@ export default function HeroSection() {
       const normalizedX = (e.clientX - centerX) / (window.innerWidth / 2);
       const normalizedY = (e.clientY - centerY) / (window.innerHeight / 2);
       
-      // 매우 작은 값으로 감소시켜 미묘한 효과만 남김
+      // 적절한 흔들림 효과를 위해 값 조정
       setMousePosition({
-        x: normalizedX * 2, // 최대 ±2도 회전으로 제한
-        y: normalizedY * 1  // 최대 ±1도 회전으로 제한
+        x: normalizedX * 3.5, // 약간 강화 (2였다가 1로 줄였던 것을 3.5로 증가)
+        y: normalizedY * 1.5  // 약간 강화 (1이었다가 0.5로 줄였던 것을 1.5로 증가)
       });
     };
     
@@ -111,21 +112,24 @@ export default function HeroSection() {
           fill
           className="object-cover"
           style={{
-            transform: `translate(${mousePosition.x * 5}px, ${mousePosition.y * 5}px)`,
-            transition: 'transform 0.5s ease-out'
+            transform: `translate(${mousePosition.x * 4}px, ${mousePosition.y * 4}px)`, // 효과 증가 (2에서 4로)
+            transition: 'transform 0.7s ease-out' // 전환 시간 약간 증가
           }}
           priority
         />
-        <div className="absolute inset-0 bg-black/60" />
+        <motion.div 
+          className="absolute inset-0 bg-black" 
+          style={{ opacity: overlayOpacity }} // 스크롤에 따라 투명도 변화
+        />
       </motion.div>
 
       <motion.div 
         className="relative z-10 flex flex-col items-center justify-center min-h-screen text-center px-4"
         style={{
-          // 미세한 3D 효과만 적용하여 과도한 회전 방지
-          transform: `perspective(1000px) rotateX(${mousePosition.y}deg) rotateY(${mousePosition.x}deg)`,
+          // 3D 효과 적절히 조정
+          transform: `perspective(1000px) rotateX(${mousePosition.y * 0.8}deg) rotateY(${mousePosition.x * 0.8}deg)`,
           transformStyle: 'preserve-3d',
-          transition: 'transform 0.5s ease-out'
+          transition: 'transform 0.7s ease-out' // 전환 시간 약간 증가
         }}
       >
         {/* 3D 텍스트 효과 */}
