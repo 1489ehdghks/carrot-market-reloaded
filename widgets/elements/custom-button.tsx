@@ -1,0 +1,58 @@
+"use client"
+
+import * as React from "react"
+import { Slot } from "@radix-ui/react-slot"
+import { cva, type VariantProps } from "class-variance-authority"
+import { cn } from "@/shared/lib/utils"
+
+const customButtonVariants = cva(
+  "inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none ring-offset-background",
+  {
+    variants: {
+      variant: {
+        default: "bg-orange text-primary-foreground hover:bg-primary/90",
+        destructive:
+          "bg-destructive text-destructive-foreground hover:bg-destructive/90",
+        secondary:
+          "bg-secondary text-secondary-foreground hover:bg-secondary/80",
+        ghost: "hover:bg-accent hover:text-accent-foreground",
+        link: "underline-offset-4 hover:underline text-primary",
+        primary: "w-full h-12 bg-gradient-to-r from-sunset to-sunset-light text-white font-medium shadow-md hover:shadow-lg hover:opacity-90",
+        sunset: "bg-gradient-to-r from-sunset-dark via-sunset to-sunset-light text-white shadow-md hover:opacity-90",
+        tangerine: "bg-gradient-to-r from-tangerine-dark via-tangerine to-tangerine-light text-white shadow-md hover:opacity-90",
+        outline:"border border-input bg-background hover:bg-accent hover:text-accent-foreground",
+      },
+      size: {
+        default: "h-10 py-2 px-4",
+        sm: "h-9 px-3 rounded-md",
+        lg: "h-11 px-8 rounded-md",
+      },
+    },
+    defaultVariants: {
+      variant: "default",
+      size: "default",
+    },
+  }
+)
+
+export interface CustomButtonProps
+  extends React.ButtonHTMLAttributes<HTMLButtonElement>,
+    VariantProps<typeof customButtonVariants> {
+  asChild?: boolean
+}
+
+const CustomButton = React.forwardRef<HTMLButtonElement, CustomButtonProps>(
+  ({ className, variant, size, asChild = false, ...props }, ref) => {
+    const Comp = asChild ? Slot : "button"
+    return (
+      <Comp
+        className={cn(customButtonVariants({ variant, size, className }))}
+        ref={ref}
+        {...props}
+      />
+    )
+  }
+)
+CustomButton.displayName = "CustomButton"
+
+export { CustomButton, customButtonVariants } 

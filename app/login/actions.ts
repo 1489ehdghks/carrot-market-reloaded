@@ -1,7 +1,7 @@
 "use server";
 
 import { z } from "zod";
-import { PASSWORD_MIN_LENGTH } from "@/lib/constants";
+import { PASSWORD_MIN_LENGTH } from "@/shared/lib/constants";
 import { login as authLogin } from "@/entities/auth/service";
 import { redirect } from "next/navigation";
 import { LoginRequest, LoginResponse, AuthErrorType } from "@/entities/auth/types";
@@ -14,10 +14,6 @@ type LoginFormState = {
     formErrors?: string[];
 } | null;
 
-const checkEmailExists = async (email: string) => {
-    // 이메일 존재 확인 로직은 service 계층으로 이동했으므로 항상 true를 반환
-    return true;
-}
 
 const formSchema = z.object({
     email: z.string().email().toLowerCase().trim(),

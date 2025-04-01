@@ -4,7 +4,7 @@ import { authOptions } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 import { v4 as uuidv4 } from 'uuid';
 import replicate from '@/lib/replicate';
-import { uploadTempImage } from '@/lib/cloudflare';
+import { uploadTempImage } from '@/shared/lib/cloudflare';
 
 // 인페인팅 API 라우트
 export async function POST(req: Request) {

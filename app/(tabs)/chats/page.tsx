@@ -1,5 +1,5 @@
-import { db } from "@/lib/db";
-import getSession from "@/lib/session";
+import { db } from "@/shared/lib/db";
+import getSession from "@/shared/lib/session";
 import Image from "next/image";
 import Link from "next/link";
 import { formatToTimeAgo } from "@/lib/utils";

@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
 import { cache } from "react";
-import getSession from "@/lib/session";
-import { db } from "@/lib/db";
+import getSession from "@/shared/lib/session";
+import { db } from "@/shared/lib/db";
 
 let sessionCache = null;
 let sessionCacheTime = 0;

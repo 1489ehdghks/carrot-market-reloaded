@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getImageSession } from "@/app/lib/imageSessionService";
-import { db } from "@/lib/db";
+import { db } from "@/shared/lib/db";
 import { z } from "zod";
 
 // 서비스 레이어에서 필요한 함수들 가져오기 (유틸리티 함수만 사용)

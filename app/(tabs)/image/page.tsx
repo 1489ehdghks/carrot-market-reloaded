@@ -2,9 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/dataDisplay/tabs";
-import { Card, CardContent } from '@/components/ui/dataDisplay/card';
-import { Button } from '@/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/widgets/shared/custom-tabs";
+import { CustomCard,CustomCardContent } from '@/widgets/elements/custom-card';
+import { CustomButton } from '@/widgets/elements/custom-button';
 import { Download, Share2, Settings } from 'lucide-react';
 import { 
   Select, 
@@ -13,7 +13,7 @@ import {
   SelectTrigger, 
   SelectValue 
 } from '@/components/ui/form/select';
-import { Switch } from '@/components/ui/form/switch';
+import { CustomSwitch } from '@/widgets/elements/custom-switch';
 import { toast } from 'sonner';
 import EmptyImageState from './components/shared/EmptyImageState';
 
@@ -33,7 +33,7 @@ const EditImageForm = dynamic(() => import('./components/client/EditImageForm'),
   ssr: false
 });
 
-const ImageUploader = dynamic(() => import('./components/shared/ImageUploader'), {
+const ImageUploader = dynamic(() => import('../../../widgets/shared/custom-ImageUploader'), {
   loading: () => <div className="h-[150px] flex items-center justify-center">이미지 업로드 로딩 중...</div>,
   ssr: false
 });
@@ -125,7 +125,7 @@ export default function ImagePage() {
 
   return (
     <div className="container mx-auto py-8 px-4">
-      <h1 className="text-2xl font-bold mb-6">Lumi AI 이미지 생성</h1>
+      <h1 className="text-2xl font-bold mb-6">이미지 생성</h1>
       
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* 왼쪽: 입력 폼 영역 */}
@@ -136,26 +136,26 @@ export default function ImagePage() {
             className="w-full"
           >
             <TabsList className="mb-4">
-              <TabsTrigger value="text-to-image">텍스트로 이미지 생성</TabsTrigger>
-              <TabsTrigger value="image-to-image">이미지 변환</TabsTrigger>
-              <TabsTrigger value="edit-image">이미지 편집</TabsTrigger>
+              <TabsTrigger value="text-to-image">text to image</TabsTrigger>
+              <TabsTrigger value="image-to-image">image to image</TabsTrigger>
+              <TabsTrigger value="edit-image">edit</TabsTrigger>
             </TabsList>
             
             <TabsContent value="text-to-image">
-              <Card>
-                <CardContent className="pt-6">
+              <CustomCard>
+                <CustomCardContent className="pt-6">
                   <TextToImageForm 
                     onGenerationStart={() => {}} 
                     onGenerationComplete={handleImageGenerated} 
                     onError={handleError} 
                   />
-                </CardContent>
-              </Card>
+                </CustomCardContent>
+              </CustomCard>
             </TabsContent>
             
             <TabsContent value="image-to-image">
-              <Card>
-                <CardContent className="pt-6">
+              <CustomCard>
+                <CustomCardContent className="pt-6">
                   <ImageUploader 
                     onImageUploaded={(file, preview) => console.log('업로드된 이미지:', file, preview)} 
                   />
@@ -165,13 +165,13 @@ export default function ImagePage() {
                     onGenerationComplete={handleImageGenerated} 
                     onError={handleError} 
                   />
-                </CardContent>
-              </Card>
+                </CustomCardContent>
+              </CustomCard>
             </TabsContent>
             
             <TabsContent value="edit-image">
-              <Card>
-                <CardContent className="pt-6">
+              <CustomCard>
+                <CustomCardContent className="pt-6">
                   <ImageUploader 
                     onImageUploaded={(file, preview) => console.log('편집할 이미지:', file, preview)} 
                   />
@@ -179,21 +179,21 @@ export default function ImagePage() {
                   {selectedImage && (
                     <div className="p-4 border rounded-md">
                       <h3 className="text-lg font-medium mb-3">이미지 편집</h3>
-                      <Button onClick={() => toast.success('편집 기능이 곧 추가될 예정입니다.')}>
+                      <CustomButton onClick={() => toast.success('편집 기능이 곧 추가될 예정입니다.')}>
                         편집 시작하기
-                      </Button>
+                      </CustomButton>
                     </div>
                   )}
-                </CardContent>
-              </Card>
+                </CustomCardContent>
+              </CustomCard>
             </TabsContent>
           </Tabs>
         </div>
         
         {/* 오른쪽: 결과 및 옵션 영역 */}
         <div>
-          <Card className="mb-4 overflow-hidden">
-            <CardContent className="p-0">
+          <CustomCard className="mb-4 overflow-hidden">
+            <CustomCardContent className="p-0">
               {selectedImage ? (
                 <div className="relative aspect-square">
                   <img 
@@ -205,11 +205,11 @@ export default function ImagePage() {
               ) : (
                 <EmptyImageState />
               )}
-            </CardContent>
-          </Card>
+            </CustomCardContent>
+          </CustomCard>
           
-          <Card>
-            <CardContent className="py-4">
+          <CustomCard>
+            <CustomCardContent className="py-4">
               <div className="space-y-4">
                 <div className="flex justify-between items-center">
                   <span className="text-sm">이미지 형식</span>
@@ -230,14 +230,14 @@ export default function ImagePage() {
                 
                 <div className="flex justify-between items-center">
                   <span className="text-sm">공개 설정</span>
-                  <Switch 
+                  <CustomSwitch 
                     checked={isPublic} 
                     onCheckedChange={setIsPublic}
                   />
                 </div>
                 
                 <div className="flex gap-2 pt-2">
-                  <Button 
+                  <CustomButton 
                     variant="default" 
                     className="flex-1"
                     onClick={handleDownload}
@@ -245,8 +245,8 @@ export default function ImagePage() {
                   >
                     <Download className="w-4 h-4 mr-2" />
                     다운로드
-                  </Button>
-                  <Button 
+                  </CustomButton>
+                  <CustomButton 
                     variant="outline" 
                     className="flex-1"
                     onClick={handleShare}
@@ -254,11 +254,11 @@ export default function ImagePage() {
                   >
                     <Share2 className="w-4 h-4 mr-2" />
                     공유하기
-                  </Button>
+                  </CustomButton>
                 </div>
               </div>
-            </CardContent>
-          </Card>
+            </CustomCardContent>
+          </CustomCard>
         </div>
       </div>
       

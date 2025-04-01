@@ -1,6 +1,6 @@
 "use server";
-import { db } from "@/lib/db";
-import getSession from "@/lib/session";
+import { db } from "@/shared/lib/db";
+import getSession from "@/shared/lib/session";
 import { createClient } from "@supabase/supabase-js";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";

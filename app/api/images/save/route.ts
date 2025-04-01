@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { handleGlobalError, UserFacingError } from "../../../lib/error-handling";
-import { db } from "@/lib/db";
+import { db } from "@/shared/lib/db";
 import { getImageSession } from "@/app/lib/imageSessionService";
 /**
  * 이미지 정보를 데이터베이스에 저장하는 API 엔드포인트

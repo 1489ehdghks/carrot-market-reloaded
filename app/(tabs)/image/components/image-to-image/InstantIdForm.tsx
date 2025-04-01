@@ -4,13 +4,13 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { PlusCircle, Trash2, RefreshCw } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/widgets/elements/sub/button';
 import { CollapsiblePanel } from '../shared/CollapsiblePanel';
 import PromptTextarea from '../shared/PromptTextarea';
-import ImageUploader from '../shared/ImageUploader';
+import ImageUploader from '../../../../../widgets/shared/custom-ImageUploader';
 import { ModelParamsConfig } from '../shared/ModelParamsConfig';
 import { INSTANTID_MODEL } from '../../data/model-params';
-import { CustomTooltip } from '@/components/ui/custom-tooltip';
+import { CustomTooltip } from '@/widgets/shared/custom-tooltip';
 
 // 이미지 업로드 함수
 async function uploadImage(file: File): Promise<{ url: string, key: string }> {

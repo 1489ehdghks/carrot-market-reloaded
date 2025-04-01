@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
-import { uploadLocalFile } from '@/lib/cloudflare';
+import { uploadLocalFile } from '@/shared/lib/cloudflare';
 
 /**
  * 이미지 업로드를 처리하는 API 엔드포인트

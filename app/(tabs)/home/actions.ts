@@ -1,8 +1,8 @@
 "use server"
 
-import { db } from "@/lib/db";
+import { db } from "@/shared/lib/db";
 import { Prisma } from "@prisma/client";
-import getSession from "@/lib/session";
+import getSession from "@/shared/lib/session";
 
 export type PostType = "general" | "notice" | "question" | "info" | "resource";
 export type PostCategory = "general" | "2d" | "2.5d" | "realistic" | "other";

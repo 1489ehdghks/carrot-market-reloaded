@@ -2,7 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { getUserBadges } from "../actions";
-import { Tooltip } from "@/components/ui/tooltip";
+import { Tooltip } from "@/widgets/shared/sub/tooltip";
 import { 
   TrophyIcon, 
   HeartIcon, 
@@ -11,7 +11,7 @@ import {
   GiftIcon,
   RocketLaunchIcon 
 } from "@heroicons/react/24/solid";
-import { CustomTooltip } from "@/components/ui/custom-tooltip";
+import { CustomTooltip } from "@/widgets/shared/custom-tooltip";
 
 const ALL_BADGES = [
   {

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { db } from "@/shared/lib/db";
 
 /**
  * Replicate 웹훅을 처리하는 API 엔드포인트

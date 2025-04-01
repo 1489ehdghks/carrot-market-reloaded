@@ -1,9 +1,9 @@
 "use server"
 
-import {db} from "@/lib/db";
+import {db} from "@/shared/lib/db";
 import { revalidateTag } from "next/cache";
 import { productSchema } from "../../add/schema";
-import getSession from "@/lib/session";
+import getSession from "@/shared/lib/session";
 
 export async function getProduct(id: string) {
   const product = await db.product.findUnique({

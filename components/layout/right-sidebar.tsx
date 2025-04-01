@@ -16,7 +16,7 @@ import {
 import { useState, useEffect, useRef } from "react"
 import Link from "next/link"
 import Image from "next/image"
-import { Tooltip } from "@/components/ui/tooltip"
+import { Tooltip } from "@/widgets/shared/sub/tooltip"
 
 import { toast } from "sonner"
 import { useRouter } from "next/navigation"

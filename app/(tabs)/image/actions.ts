@@ -10,8 +10,8 @@ import {
   type ImageGenerationParams,
   type ImageGenerationResult
 } from "../../lib/imageService";
-import { db } from '@/lib/db';
-import { getSession } from '@/lib/auth';
+import { db } from '@/shared/lib/db';
+import getSession from "@/shared/lib/session";
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 

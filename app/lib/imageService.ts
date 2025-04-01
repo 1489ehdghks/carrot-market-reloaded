@@ -1,5 +1,5 @@
 import Replicate from "replicate";
-import { db } from "@/lib/db";
+import { db } from "@/shared/lib/db";
 import { getSession } from "@/lib/auth";
 import { cache } from "react";
 import { 

@@ -5,8 +5,8 @@ import twilio from "twilio";
 import { z } from "zod";
 import validator from "validator";
 import { redirect } from "next/navigation";
-import getSession from "@/lib/session";
-import {db} from "@/lib/db";
+import getSession from "@/shared/lib/session";
+import {db} from "@/shared/lib/db";
 
 async function tokenExists(token:number) {
     const exists = await db.sMSToken.findUnique({

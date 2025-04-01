@@ -54,9 +54,8 @@ export function useImageGeneration(
   const generateImage = async (params: GenerationParams) => {
     try {
       // 상태 초기화 및 생성 시작
+      reset();
       setStatus('generating');
-      setProgress(0);
-      setError(null);
       if (onStart) onStart();
       
       // API 요청 준비
@@ -73,18 +72,12 @@ export function useImageGeneration(
         saveMetadata: false
       };
 
-      // 진행 상태 업데이트
-      setProgress(10);
-      
       // API 요청
       const response = await fetch("/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
-
-      // 진행 상태 업데이트
-      setProgress(50);
       
       // 오류 응답 처리
       if (!response.ok) {
@@ -94,7 +87,6 @@ export function useImageGeneration(
 
       // 성공 응답 처리
       const data = await response.json();
-      setProgress(80);
       
       if (!data.success) {
         throw new UserFacingError(data.error || "이미지 생성에 실패했습니다");
@@ -107,7 +99,6 @@ export function useImageGeneration(
       // 처리 중 상태 확인
       if (data.processing && (!data.image.url || data.image.status === "processing")) {
         console.log("이미지 처리 중, 상태 폴링 시작:", tempId);
-        setStatus('generating');
         
         // 상태 폴링 (최대 60초, 5초 간격)
         let attempt = 0;
@@ -135,11 +126,9 @@ export function useImageGeneration(
               imageData = statusData.image;
               break;
             } else if (statusData.status === 'failed') {
-              // 처리 실패
               throw new UserFacingError("이미지 생성에 실패했습니다");
             }
             
-            // 진행률 업데이트 (80~95%)
             setProgress(80 + Math.min(15, attempt));
           } catch (error) {
             console.error("이미지 상태 폴링 중 오류:", error);
@@ -152,15 +141,44 @@ export function useImageGeneration(
         
         // 이미지 URL 설정
         setImageUrl(imageData.url);
-        setStatus('complete');
-        setProgress(100);
         
         // 완료 콜백 호출
         if (onComplete) onComplete(imageData.url, imageData.id || tempId);
+        
+        // Cloudflare 업로드 시도
+        try {
+          setStatus('uploading');
+          const result = await uploadToPermanentStorage(
+            imageData.url,
+            tempId,
+            params.width,
+            params.height
+          );
+          
+          if (result.success && result.url) {
+            setImageUrl(result.url);
+            if (result.thumbnailUrl) setThumbnailUrl(result.thumbnailUrl);
+            if (result.id) setImageId(result.id);
+            
+            // 영구 URL로 콜백 다시 호출
+            if (onComplete) {
+              onComplete(
+                result.url,
+                result.id || tempId,
+                result.thumbnailUrl || undefined
+              );
+            }
+          }
+        } catch (uploadError) {
+          console.warn("Cloudflare 업로드 실패:", uploadError);
+          // 업로드 실패해도 임시 URL 사용 가능하므로 진행
+        }
+        
+        setStatus('complete');
         return;
       }
 
-      // 바로 URL이 있는 경우 (기존 코드)
+      // 바로 URL이 있는 경우
       const tempUrl = data.image.url;
       
       if (!tempUrl) {
@@ -168,48 +186,35 @@ export function useImageGeneration(
       }
       
       setImageUrl(tempUrl);
-      setStatus('complete');
-      setProgress(100);
-      
-      // 완료 콜백 호출
       if (onComplete) onComplete(tempUrl, tempId);
       
-      // 백그라운드에서 영구 URL로 저장 (useCloudflareUpload 훅 사용)
-      setStatus('uploading');
-      const result = await uploadToPermanentStorage(
-        tempUrl, 
-        tempId,
-        params.width,
-        params.height
-      );
-      
-      if (result.success) {
-        // URL 업데이트
-        if (result.url) {
+      // Cloudflare 업로드 시도
+      try {
+        setStatus('uploading');
+        const result = await uploadToPermanentStorage(
+          tempUrl,
+          tempId,
+          params.width,
+          params.height
+        );
+        
+        if (result.success && result.url) {
           setImageUrl(result.url);
+          if (result.thumbnailUrl) setThumbnailUrl(result.thumbnailUrl);
+          if (result.id) setImageId(result.id);
+          
+          // 영구 URL로 콜백 다시 호출
+          if (onComplete) {
+            onComplete(
+              result.url,
+              result.id || tempId,
+              result.thumbnailUrl || undefined
+            );
+          }
         }
-        
-        // 썸네일 URL 설정
-        if (result.thumbnailUrl) {
-          setThumbnailUrl(result.thumbnailUrl);
-        }
-        
-        // ID 업데이트
-        if (result.id) {
-          setImageId(result.id);
-        }
-        
-        // 완료 콜백 다시 호출 (영구 URL로)
-        if (onComplete && result.url) {
-          onComplete(
-            result.url, 
-            result.id || tempId,
-            result.thumbnailUrl || undefined
-          );
-        }
-      } else if (result.error) {
-        console.warn("영구 저장소 업로드 실패:", result.error);
-        // 실패해도 임시 URL은 계속 사용 가능하므로 치명적인 오류는 아님
+      } catch (uploadError) {
+        console.warn("Cloudflare 업로드 실패:", uploadError);
+        // 업로드 실패해도 임시 URL 사용 가능하므로 진행
       }
       
       setStatus('complete');
@@ -219,11 +224,8 @@ export function useImageGeneration(
       
       setStatus('error');
       setProgress(0);
-      
-      // 오류 메시지 설정
       setError(error instanceof Error ? error.message : "알 수 없는 오류가 발생했습니다");
       
-      // 전역 오류 핸들러에 전달
       if (error instanceof UserFacingError) {
         handleGlobalError(error);
       } else {

@@ -1,5 +1,5 @@
 import { ChatBubbleBottomCenterIcon,HandThumbUpIcon } from "@heroicons/react/24/outline";
-import { db } from "@/lib/db";
+import { db } from "@/shared/lib/db";
 import { formatToTimeAgo } from "@/lib/utils";
 import Link from "next/link";
 

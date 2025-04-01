@@ -5,7 +5,7 @@ import FormBtn from "@/components/feature/common/button";
 import SocialLogin from "@/components/feature/user/social-login";
 import { login } from "./actions";
 import { useActionState } from "react";
-import { PASSWORD_MIN_LENGTH } from "@/lib/constants";
+import { PASSWORD_MIN_LENGTH } from "@/shared/lib/constants";
 
 export default function Login() {
 

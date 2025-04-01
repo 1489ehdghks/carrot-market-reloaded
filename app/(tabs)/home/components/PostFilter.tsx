@@ -1,7 +1,7 @@
 "use client";
 
 import { PostType, PostCategory } from "../actions";
-import { CustomTooltip } from "@/components/ui/custom-tooltip";
+import { CustomTooltip } from "@/widgets/shared/custom-tooltip";
 
 interface PostFilterProps {
   type?: PostType;

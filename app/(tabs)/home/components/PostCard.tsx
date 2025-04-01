@@ -4,7 +4,7 @@ import { formatToTimeAgo } from "@/lib/utils";
 import { HandThumbUpIcon, HandThumbDownIcon, ChatBubbleLeftIcon } from "@heroicons/react/24/outline";
 import { EyeIcon } from "@heroicons/react/24/outline";
 import Link from "next/link";
-import { CustomTooltip } from "@/components/ui/custom-tooltip";
+import { CustomTooltip } from "@/widgets/shared/custom-tooltip";
 import dayjs from "dayjs";
 import { PostSummary } from "../actions";
 

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { handleGlobalError, UserFacingError } from "../../lib/error-handling";
 import { getImageSession } from '@/app/lib/imageSessionService';
-import { uploadImageFromUrl } from "@/lib/cloudflare";
+import { uploadImageFromUrl } from "@/shared/lib/cloudflare";
 
 /**
  * 임시 이미지 URL을 Cloudflare Images에 업로드하고 영구 URL을 반환하는 API 엔드포인트

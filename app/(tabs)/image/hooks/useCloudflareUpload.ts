@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { handleGlobalError, UserFacingError } from '@/app/lib/error-handling';
-import { CloudflareUploadResult } from '@/lib/cloudflare';
+import { CloudflareUploadResult } from '@/shared/lib/cloudflare';
 
 /**
  * Cloudflare 이미지 업로드 기능을 캡슐화하는 훅

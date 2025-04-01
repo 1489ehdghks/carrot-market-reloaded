@@ -7,10 +7,10 @@ import { AI_MODELS, getDefaultModel, getModelById } from "../../data/models";
 import { SAMPLER_OPTIONS, getDefaultSampler } from "../../data/samplers";
 import { VAE_OPTIONS, getDefaultVae } from "../../data/vae";
 import { CollapsiblePanel } from "../shared/CollapsiblePanel";
-import { CustomTooltip } from "@/components/ui/custom-tooltip";
+import { CustomTooltip } from "@/widgets/shared/custom-tooltip";
 import { Switch } from "@/components/ui/form/switch";
-import ImageUploader from "../shared/ImageUploader";
-import { useNotification } from "@/components/ui/feedback/notification";
+import ImageUploader from "../../../../../widgets/shared/custom-ImageUploader";
+import { useNotification } from "@/widgets/shared/custom-notification";
 import { calculateImageCost } from '../../data/tokenUtils';
 import { encode } from 'gpt-tokenizer';
 import { filterSpecialModelsByCategory, getSpecialModelById } from '../../data/specialModels';
@@ -71,16 +71,15 @@ export default function TextToImageForm({
     return filterSpecialModelsByCategory('faceswap');
   }, []);
   
-  // 토큰 수 계산 함수
-  const calculateTokens = (text: string): number => {
+  // 토큰 수 계산 함수를 useMemo로 최적화
+  const calculateTokens = useMemo(() => (text: string): number => {
     if (!text) return 0;
-    // gpt-tokenizer를 사용해 정확한 토큰 수 계산
     return encode(text).length;
-  };
+  }, []);
 
-  // 선택된 모델 정보 가져오기
+  // 선택된 모델 정보 가져오기 최적화
   const selectedModel = useMemo(
-    () => getModelById(modelId || model) || getModelById(getDefaultModel().id) || AI_MODELS[0],
+    () => getModelById(modelId || model) || getDefaultModel(),
     [model, modelId]
   );
   
@@ -113,6 +112,17 @@ export default function TextToImageForm({
 
   // 설정 값 관리를 위한 state
   const [modelSpecificSettings, setModelSpecificSettings] = useState<Record<string, any>>({});
+  
+  // 모델별 설정 메모이제이션
+  const modelSettings = useMemo(() => {
+    if (!selectedModel?.configOptions) return {};
+    
+    return {
+      steps: selectedModel.configOptions.steps?.default || 28,
+      cfgScale: selectedModel.configOptions.cfgScale?.default || 7,
+      sampler: selectedModel.configOptions.sampler?.default || 'DPM++ 2M SDE'
+    };
+  }, [selectedModel]);
   
   // 로컬 스토리지에서 이전 입력 데이터 복원
   useEffect(() => {
@@ -230,25 +240,27 @@ export default function TextToImageForm({
     }
   }, [modelId, onModelChange, calculateTokens]);
   
+  // model 상태 변경 감지용 useEffect
+  useEffect(() => {
+    if (onModelChange && !modelId) {
+      onModelChange(model);
+    }
+  }, [model, onModelChange, modelId]);
 
-  // 모델별 설정 변경 핸들러
-  const handleSettingChange = (key: string, value: any) => {
-    // 키에서 접두사 제거
+  // 모델별 설정 변경 핸들러 최적화
+  const handleSettingChange = useCallback((key: string, value: any) => {
     const originalKey = key.replace('model-config-', '');
     
     console.log(`설정 변경: ${originalKey} = ${value}`);
     
     if (originalKey === 'steps') {
       setSteps(Number(value));
-      // 로컬 스토리지에 저장
       localStorage.setItem('steps', value.toString());
     } else if (originalKey === 'cfgScale') {
       setCfgScale(Number(value));
-      // 로컬 스토리지에 저장
       localStorage.setItem('cfgScale', value.toString());
     } else if (originalKey === 'sampler') {
       setSampler(value);
-      // 로컬 스토리지에 저장
       localStorage.setItem('sampler', value);
     } else {
       setModelSpecificSettings(prev => ({
@@ -256,13 +268,12 @@ export default function TextToImageForm({
         [originalKey]: value
       }));
       
-      // 모델별 설정도 로컬 스토리지에 저장
       const savedSettings = JSON.parse(localStorage.getItem('modelSpecificSettings') || '{}');
       savedSettings[model] = savedSettings[model] || {};
       savedSettings[model][originalKey] = value;
       localStorage.setItem('modelSpecificSettings', JSON.stringify(savedSettings));
     }
-  };
+  }, [model]);
 
   // 응답에서 이미지 URL 추출 함수
   const extractImageUrl = (response: any): string | null => {
@@ -313,75 +324,25 @@ export default function TextToImageForm({
     return null;
   };
 
-  // 모델 변경 핸들러
-  const handleModelChange = (newModelId: string) => {
+  // 모델 변경 핸들러 최적화
+  const handleModelChange = useCallback((newModelId: string) => {
     setModel(newModelId);
-    
-    // 외부에서 제공된 콜백 실행
-    if (onModelChange) {
-      onModelChange(newModelId);
-    }
-    
-    // 모델 ID 저장
     localStorage.setItem('model', newModelId);
     
-    // 새 모델 정보 가져오기
     const newModelInfo = getModelById(newModelId);
     
-    // 이 모델에 대해 저장된 설정이 있는지 확인
-    try {
-      const savedModelSettings = localStorage.getItem('modelSpecificSettings');
-      if (savedModelSettings) {
-        const parsedSettings = JSON.parse(savedModelSettings);
-        if (parsedSettings[newModelId]) {
-          // 저장된 모델 특정 설정이 있으면 로드
-          setModelSpecificSettings(parsedSettings[newModelId]);
-          
-          // 기본 설정 중 모델별로 저장된 설정이 있으면 해당 값 사용
-          const modelSettings = parsedSettings[newModelId];
-          if (modelSettings.steps !== undefined) {
-            setSteps(Number(modelSettings.steps));
-          } else if (newModelInfo?.configOptions?.steps) {
-            setSteps(newModelInfo.configOptions.steps.default);
-          }
-          
-          if (modelSettings.cfgScale !== undefined) {
-            setCfgScale(Number(modelSettings.cfgScale));
-          } else if (newModelInfo?.configOptions?.cfgScale) {
-            setCfgScale(newModelInfo.configOptions.cfgScale.default);
-          }
-          
-          if (modelSettings.sampler !== undefined) {
-            setSampler(modelSettings.sampler);
-          } else if (newModelInfo?.configOptions?.sampler) {
-            setSampler(newModelInfo.configOptions.sampler.default);
-          }
-          
-          return; // 저장된 설정을 로드했으므로 여기서 종료
-        }
-      }
-    } catch (error) {
-      console.error('모델별 설정 로드 중 오류:', error);
-    }
-    
-    // 저장된 모델 설정이 없거나 오류가 발생한 경우 기본값으로 설정
     if (newModelInfo?.configOptions) {
       if (newModelInfo.configOptions.steps) {
         setSteps(newModelInfo.configOptions.steps.default);
-        localStorage.setItem('steps', newModelInfo.configOptions.steps.default.toString());
       }
-      
       if (newModelInfo.configOptions.cfgScale) {
         setCfgScale(newModelInfo.configOptions.cfgScale.default);
-        localStorage.setItem('cfgScale', newModelInfo.configOptions.cfgScale.default.toString());
       }
-      
       if (newModelInfo.configOptions.sampler) {
         setSampler(newModelInfo.configOptions.sampler.default);
-        localStorage.setItem('sampler', newModelInfo.configOptions.sampler.default);
       }
     }
-  };
+  }, []);
 
   // 모델 변경 시 설정 재설정
   const handleResetSettings = (newModelId?: string) => {
@@ -602,15 +563,13 @@ export default function TextToImageForm({
     );
   };
 
-  // 일반 모드 이미지 생성 핸들러
-  const handleNormalGeneration = async () => {
+  // 일반 모드 이미지 생성 핸들러 최적화
+  const handleNormalGeneration = useCallback(async () => {
     try {
-      // 기본 이미지 생성 시작 함수
       setIsGenerating(true);
       setLoadingState('generating');
       onGenerationStart();
       
-      // 선택한 모델 정보 불러오기 - 모델ID가 props로부터 오거나 state에서 옴
       const actualModelId = modelId || model;
       const selectedModel = getModelById(actualModelId);
       
@@ -736,10 +695,10 @@ export default function TextToImageForm({
       setIsGenerating(false);
       setLoadingState('idle');
     }
-  };
+  }, [modelId, model, onGenerationStart, onError]);
 
   // Face Swap을 적용한 이미지 생성 처리 - 유사한 방식으로 수정
-  const handleGenerationWithFaceSwap = async () => {
+  const handleGenerationWithFaceSwap = useCallback(async () => {
     try {
       // Face Swap을 위한 검증
       if (!faceImage || !faceImagePreview) {
@@ -930,7 +889,7 @@ export default function TextToImageForm({
       setLoadingState('idle');
       setTempImageUrl(null);
     }
-  };
+  }, [faceImage, faceImagePreview, onGenerationStart, onError]);
   
   const sizePresets = [
     { label: "정사각형", value: "768x768" },
@@ -1163,7 +1122,6 @@ export default function TextToImageForm({
                 <SelectItem value="1024">1024px</SelectItem>
               </SelectContent>
             </Select>
-            <p className="text-xs text-gray-400">너비</p>
           </div>
           
           <div className="space-y-2">
@@ -1184,7 +1142,6 @@ export default function TextToImageForm({
                 <SelectItem value="1024">1024px</SelectItem>
               </SelectContent>
             </Select>
-            <p className="text-xs text-gray-400">높이</p>
           </div>
         </div>
       </div>

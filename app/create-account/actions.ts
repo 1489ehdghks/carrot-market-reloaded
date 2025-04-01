@@ -1,5 +1,5 @@
 "use server"
-import { PASSWORD_MIN_LENGTH } from "@/lib/constants";
+import { PASSWORD_MIN_LENGTH } from "@/shared/lib/constants";
 import { z } from "zod";
 import { redirect } from "next/navigation";
 import { register } from "@/entities/auth/service";

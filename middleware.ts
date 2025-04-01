@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import { SessionData, sessionOptions } from "@/lib/session";
+import { SessionData, sessionOptions } from "@/shared/lib/session";
 
 interface Routes {
     [key:string]:boolean;

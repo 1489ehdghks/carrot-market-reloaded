@@ -1,5 +1,5 @@
-import { db } from "@/lib/db";
-import getSession from "@/lib/session";
+import { db } from "@/shared/lib/db";
+import getSession from "@/shared/lib/session";
 import { EyeIcon } from "@heroicons/react/24/solid";
 import { notFound } from "next/navigation";
 import { formatToTimeAgo } from "@/lib/utils";

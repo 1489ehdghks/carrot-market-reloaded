@@ -1,6 +1,6 @@
 import React from 'react';
 import { notFound } from 'next/navigation';
-import { db } from "@/lib/db";
+import { db } from "@/shared/lib/db";
 import AIImageDetail from "../components/shared/AIImageDetail";
 
 interface PageProps {

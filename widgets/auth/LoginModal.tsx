@@ -8,7 +8,7 @@ import SocialLogin from "@/components/feature/user/social-login";
 import { login } from "@/app/login/actions";
 import { CreateAccount } from "@/app/create-account/actions";
 import { useActionState } from "react";
-import { PASSWORD_MIN_LENGTH } from "@/lib/constants";
+import { PASSWORD_MIN_LENGTH } from "@/shared/lib/constants";
 
 interface LoginModalProps {
   isOpen: boolean;
@@ -48,7 +48,7 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
           >
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-2xl font-bold text-white">
-                Lumi AI {isLoginFormActive ? "로그인" : "회원가입"}
+                {isLoginFormActive ? "로그인" : "회원가입"}
               </h2>
               <button
                 onClick={resetAndClose}
@@ -59,7 +59,6 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
             </div>
 
             {isLoginFormActive ? (
-              // 로그인 폼
               <form action={loginDispatch} className="flex flex-col gap-4">
                 <CustomInput
                   name="email"
@@ -68,7 +67,7 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
                   required
                   errors={loginState?.fieldErrors?.email}
                   autoComplete="email"
-                  className="bg-[#2A2A2A] border-[#3A3A3A] text-white"
+                  className="bg-[#2A2A2A] border-orange-500/20 focus:border-orange-500/50 text-white"
                 />
                 <CustomInput
                   name="password"
@@ -78,7 +77,7 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
                   errors={loginState?.fieldErrors?.password}
                   minLength={PASSWORD_MIN_LENGTH}
                   autoComplete="current-password"
-                  className="bg-[#2A2A2A] border-[#3A3A3A] text-white"
+                  className="bg-[#2A2A2A] border-orange-500/20 focus:border-orange-500/50 text-white"
                 />
                 {loginState?.formErrors && (
                   <div className="text-red-500 text-sm">
@@ -87,10 +86,13 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
                     ))}
                   </div>
                 )}
-                <CustomButton text="로그인" variant="primary" />
+                <CustomButton 
+                  text="로그인" 
+                  variant="primary"
+                  className="bg-gradient-to-r from-orange-500 via-orange-400 to-amber-500 hover:from-orange-400 hover:via-orange-300 hover:to-amber-400"
+                />
               </form>
             ) : (
-              // 회원가입 폼
               <form action={registerDispatch} className="flex flex-col gap-4">
                 <CustomInput
                   name="username"
@@ -99,7 +101,7 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
                   required
                   errors={registerState?.fieldErrors?.username}
                   autoComplete="username"
-                  className="bg-[#2A2A2A] border-[#3A3A3A] text-white"
+                  className="bg-[#2A2A2A] border-orange-500/20 focus:border-orange-500/50 text-white"
                 />
                 <CustomInput
                   name="email"
@@ -108,7 +110,7 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
                   required
                   errors={registerState?.fieldErrors?.email}
                   autoComplete="email"
-                  className="bg-[#2A2A2A] border-[#3A3A3A] text-white"
+                  className="bg-[#2A2A2A] border-orange-500/20 focus:border-orange-500/50 text-white"
                 />
                 <CustomInput
                   name="password"
@@ -118,7 +120,7 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
                   errors={registerState?.fieldErrors?.password}
                   minLength={PASSWORD_MIN_LENGTH}
                   autoComplete="new-password"
-                  className="bg-[#2A2A2A] border-[#3A3A3A] text-white"
+                  className="bg-[#2A2A2A] border-orange-500/20 focus:border-orange-500/50 text-white"
                 />
                 <CustomInput
                   name="passwordConfirm"
@@ -128,7 +130,7 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
                   errors={registerState?.fieldErrors?.passwordConfirm}
                   minLength={PASSWORD_MIN_LENGTH}
                   autoComplete="new-password"
-                  className="bg-[#2A2A2A] border-[#3A3A3A] text-white"
+                  className="bg-[#2A2A2A] border-orange-500/20 focus:border-orange-500/50 text-white"
                 />
                 {registerState?.formErrors && (
                   <div className="text-red-500 text-sm">
@@ -137,14 +139,18 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
                     ))}
                   </div>
                 )}
-                <CustomButton text="회원가입" variant="primary" />
+                <CustomButton 
+                  text="회원가입" 
+                  variant="primary"
+                  className="bg-gradient-to-r from-orange-500 via-orange-400 to-amber-500 hover:from-orange-400 hover:via-orange-300 hover:to-amber-400"
+                />
               </form>
             )}
 
             <div className="mt-6 text-center">
               <button
                 onClick={toggleForm}
-                className="text-[#FFB4B4] hover:text-[#FF9B9B] transition-colors"
+                className="text-orange-400 hover:text-orange-300 transition-colors"
               >
                 {isLoginFormActive
                   ? "계정이 없으신가요? 회원가입"

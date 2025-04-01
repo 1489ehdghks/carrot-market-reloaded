@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { handleGlobalError, UserFacingError } from "../../lib/error-handling";
-import { uploadLocalFile, selectVariantBySize, generateVariantUrls } from "@/lib/cloudflare";
+import { uploadLocalFile, selectVariantBySize, generateVariantUrls } from "@/shared/lib/cloudflare";
 
 /**
  * 로컬 이미지 파일을 Cloudflare Images에 직접 업로드하는 API 엔드포인트

@@ -2,7 +2,7 @@
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { useState } from "react"
-import { NotificationProvider } from "@/components/ui/feedback/notification"
+import { NotificationProvider } from "@/widgets/shared/custom-notification"
 import { ErrorNotificationListener } from "./lib/error-notification"
 
 export default function Providers({ children }: { children: React.ReactNode }) {

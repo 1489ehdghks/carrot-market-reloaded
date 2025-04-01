@@ -1,7 +1,7 @@
 "use server"
 
-import {db} from "@/lib/db";
-import getSession from "@/lib/session";
+import {db} from "@/shared/lib/db";
+import getSession from "@/shared/lib/session";
 import { redirect } from "next/navigation";
 import { productSchema } from "./schema";
 import { revalidateTag } from "next/cache";

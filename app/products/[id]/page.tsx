@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
-import {db} from "@/lib/db";
-import getSession from "@/lib/session";
+import {db} from "@/shared/lib/db";
+import getSession from "@/shared/lib/session";
 import Image from "next/image";
 import { UserIcon } from "@heroicons/react/24/solid";
 import { formatToWon } from "@/lib/utils";
