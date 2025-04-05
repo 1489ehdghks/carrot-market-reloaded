@@ -1,9 +1,7 @@
-import React, { useRef } from 'react';
-import { Label } from "@/components/ui/form/label";
-import { Button } from "@/widgets/elements/sub/button";
+import React from 'react';
+import { CustomButton } from '@/widgets/elements/custom-button';
 import { CustomTooltip } from "@/widgets/shared/custom-tooltip";
-import { Slider } from "@/components/ui/form/slider";
-import { Switch } from "@/components/ui/form/switch";
+import { CustomSwitch } from '@/widgets/elements/custom-switch';
 
 interface InstantIDModelSettingsProps {
   faceImagePreview: string | null;
@@ -53,23 +51,23 @@ export default function InstantIDModelSettings({
                 
                 <div className="flex-1 space-y-2">
                   {faceImagePreview ? (
-                    <Button 
+                    <CustomButton 
                       type="button" 
                       variant="outline"
                       onClick={clearFaceImage}
                       className="w-full"
                     >
                       이미지 변경
-                    </Button>
+                    </CustomButton>
                   ) : (
-                    <Button 
+                    <CustomButton 
                       type="button" 
                       variant="outline"
                       onClick={onFaceImageClick}
                       className="w-full"
                     >
                       이미지 선택
-                    </Button>
+                    </CustomButton>
                   )}
                   <p className="text-xs text-gray-400">
                     얼굴이 잘 나온 정면 이미지를 사용하세요
@@ -123,7 +121,7 @@ export default function InstantIDModelSettings({
                   </svg>
                 </CustomTooltip>
               </div>
-              <Switch 
+              <CustomSwitch 
                 checked={config.enhance_face_region ?? true}
                 onCheckedChange={(checked) => onConfigChange('enhance_face_region', checked)}
               />

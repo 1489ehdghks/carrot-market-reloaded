@@ -2,9 +2,9 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import CustomInput from "@/components/feature/common/custom-input";
-import CustomButton from "@/components/feature/common/custom-button";
-import SocialLogin from "@/components/feature/user/social-login";
+import { CustomInput } from "../elements/custom-input";
+import { CustomButton } from "../elements/custom-button";
+import SocialLogin from "@/widgets/shared/social-login-form";
 import { login } from "@/app/login/actions";
 import { CreateAccount } from "@/app/create-account/actions";
 import { useActionState } from "react";
@@ -15,8 +15,29 @@ interface LoginModalProps {
   onClose: () => void;
 }
 
+
+type LoginFormState = {
+  fieldErrors?: {
+    email?: string[];
+    password?: string[];
+  };
+  formErrors?: string[];
+} | null;
+
+type RegisterFormState = {
+  fieldErrors?: {
+    username?: string[];
+    email?: string[];
+    password?: string[];
+    passwordConfirm?: string[];
+  };
+  formErrors?: string[];
+} | null;
+
 export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
   const [isLoginFormActive, setLoginFormActive] = useState(true);
+  
+  // useActionState를 사용하여 서버 액션 상태 관리
   const [loginState, loginDispatch] = useActionState(login, null);
   const [registerState, registerDispatch] = useActionState(CreateAccount, null);
 
@@ -65,7 +86,7 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
                   type="email"
                   placeholder="이메일"
                   required
-                  errors={loginState?.fieldErrors?.email}
+                  error={loginState?.fieldErrors?.email}
                   autoComplete="email"
                   className="bg-[#2A2A2A] border-orange-500/20 focus:border-orange-500/50 text-white"
                 />
@@ -74,23 +95,23 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
                   type="password"
                   placeholder="비밀번호"
                   required
-                  errors={loginState?.fieldErrors?.password}
+                  error={loginState?.fieldErrors?.password}
                   minLength={PASSWORD_MIN_LENGTH}
                   autoComplete="current-password"
                   className="bg-[#2A2A2A] border-orange-500/20 focus:border-orange-500/50 text-white"
                 />
-                {loginState?.formErrors && (
+                {loginState?.formErrors && loginState.formErrors.length > 0 && (
                   <div className="text-red-500 text-sm">
-                    {loginState.formErrors.map((error, i) => (
-                      <p key={i}>{error}</p>
-                    ))}
+                    {loginState.formErrors[0]}
                   </div>
                 )}
                 <CustomButton 
-                  text="로그인" 
+                  type="submit"
                   variant="primary"
                   className="bg-gradient-to-r from-orange-500 via-orange-400 to-amber-500 hover:from-orange-400 hover:via-orange-300 hover:to-amber-400"
-                />
+                >
+                  로그인
+                </CustomButton>
               </form>
             ) : (
               <form action={registerDispatch} className="flex flex-col gap-4">
@@ -99,7 +120,7 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
                   type="text"
                   placeholder="사용자 이름"
                   required
-                  errors={registerState?.fieldErrors?.username}
+                  error={registerState?.fieldErrors?.username}
                   autoComplete="username"
                   className="bg-[#2A2A2A] border-orange-500/20 focus:border-orange-500/50 text-white"
                 />
@@ -108,7 +129,7 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
                   type="email"
                   placeholder="이메일"
                   required
-                  errors={registerState?.fieldErrors?.email}
+                  error={registerState?.fieldErrors?.email}
                   autoComplete="email"
                   className="bg-[#2A2A2A] border-orange-500/20 focus:border-orange-500/50 text-white"
                 />
@@ -117,7 +138,7 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
                   type="password"
                   placeholder="비밀번호 (8자 이상)"
                   required
-                  errors={registerState?.fieldErrors?.password}
+                  error={registerState?.fieldErrors?.password}
                   minLength={PASSWORD_MIN_LENGTH}
                   autoComplete="new-password"
                   className="bg-[#2A2A2A] border-orange-500/20 focus:border-orange-500/50 text-white"
@@ -127,23 +148,23 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
                   type="password"
                   placeholder="비밀번호 확인"
                   required
-                  errors={registerState?.fieldErrors?.passwordConfirm}
+                  error={registerState?.fieldErrors?.passwordConfirm}
                   minLength={PASSWORD_MIN_LENGTH}
                   autoComplete="new-password"
                   className="bg-[#2A2A2A] border-orange-500/20 focus:border-orange-500/50 text-white"
                 />
-                {registerState?.formErrors && (
+                {registerState?.formErrors && registerState.formErrors.length > 0 && (
                   <div className="text-red-500 text-sm">
-                    {registerState.formErrors.map((error, i) => (
-                      <p key={i}>{error}</p>
-                    ))}
+                    {registerState.formErrors[0]}
                   </div>
                 )}
                 <CustomButton 
-                  text="회원가입" 
+                  type="submit"
                   variant="primary"
                   className="bg-gradient-to-r from-orange-500 via-orange-400 to-amber-500 hover:from-orange-400 hover:via-orange-300 hover:to-amber-400"
-                />
+                >
+                  회원가입
+                </CustomButton>
               </form>
             )}
 

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { getSession } from "@/lib/auth";
+import getSession from "@/shared/lib/session";
 import { z } from "zod";
-import { getSpecialModelById } from "../../(tabs)/image/data/specialModels";
+import { getSpecialModelById } from "@/shared/models/image/specialModels";
 
 /**
  * Face Swap API 엔드포인트

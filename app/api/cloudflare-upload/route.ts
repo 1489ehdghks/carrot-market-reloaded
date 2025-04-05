@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { handleGlobalError, UserFacingError } from "../../lib/error-handling";
-import { getImageSession } from '@/app/lib/imageSessionService';
+import { handleGlobalError, UserFacingError } from "../../../shared/constants/lib/error-handling";
+import { getImageSession } from '@/shared/constants/lib/imageSessionService';
 import { uploadImageFromUrl } from "@/shared/lib/cloudflare";
 
 /**

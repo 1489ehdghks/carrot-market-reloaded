@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { handleGlobalError, UserFacingError } from "../../lib/error-handling";
+import { handleGlobalError, UserFacingError } from "../../../shared/constants/lib/error-handling";
 import { uploadLocalFile, selectVariantBySize, generateVariantUrls } from "@/shared/lib/cloudflare";
 
 /**

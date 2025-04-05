@@ -1,7 +1,7 @@
 "use server";
 
 import { db } from "@/shared/lib/db";
-import { getSession } from "@/lib/auth";
+import getSession from "@/shared/lib/session";
 import { PostType, PostCategory } from "../actions";
 
 export async function getPost(id: number) {
@@ -67,7 +67,7 @@ export async function togglePostReaction(postId: number, type: 'like' | 'dislike
       where: {
         postId_userId: {
           postId,
-          userId: session.id
+          userId: session.id!
         }
       },
       select: {
@@ -305,7 +305,7 @@ export async function getPostWithDetailsOptimized(id: number) {
     
     if (session) {
       // 좋아요 정보 가져오기 (비동기 처리)
-      const likeInfoPromise = getLikeInfo(id, session.id);
+      const likeInfoPromise = getLikeInfo(id, session.id!);
       
       // 좋아요 정보가 없어도 UI 렌더링 가능하도록 기본값 반환
       likeInfoPromise.then(info => {

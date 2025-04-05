@@ -9,7 +9,7 @@
  * @module features/storage/service/storageService
  */
 
-import { db } from "@/shared/api/db";
+import { db } from "@/shared/lib/db";
 import { uploadToCloudflare, updateAIImagePermanentUrl } from "@/shared/api/cloudflare";
 
 /**

@@ -1,5 +1,5 @@
-import { getModelById } from "../models/textModels";
-import { getSpecialModelById } from "../models/specialModels";
+import { getModelById } from "../models/image/textModels";
+import { getSpecialModelById } from "../models/image/specialModels";
 
 // 이미지 생성 비용 계산
 interface ImageCostParams {

@@ -1,5 +1,4 @@
 "use server";
-
 import {
   generateImageWithText as genImageWithText,
   generateImageWithImage as genImageWithImage,
@@ -9,11 +8,11 @@ import {
   publishImage as publish,
   type ImageGenerationParams,
   type ImageGenerationResult
-} from "../../lib/imageService";
+} from "@/features/image/api/imageService";
 import { db } from '@/shared/lib/db';
 import getSession from "@/shared/lib/session";
 import { revalidatePath } from 'next/cache';
-import { z } from 'zod';
+import { ImageCategory } from '@/shared/constants/imageCategories';
 
 /**
  * 최적화된 이미지 생성 함수
@@ -44,24 +43,36 @@ export async function generateImage(params: {
   vae?: string,
 }) {
   try {
-    // API 호출 (즉시 결과 반환 + 백그라운드 처리)
-    const response = await fetch('/api/generate', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(params),
-    });
-    
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || '이미지 생성 실패');
+    // API 엔드포인트 대신 직접 서비스 함수 호출
+    const session = await getSession();
+    if (!session?.id) {
+      return { success: false, error: '로그인이 필요합니다.' };
     }
     
-    const data = await response.json();
+    const result = await genImageWithText({
+      prompt: params.prompt,
+      modelId: params.modelId || 'realistic-vision-v5.1',
+      width: params.width || 512,
+      height: params.height || 512,
+      steps: params.steps || 30,
+      cfgScale: params.cfgScale || 7,
+      sampler: params.sampler || 'DPM++ 2M Karras',
+      vae: params.vae,
+      negativePrompt: params.negativePrompt,
+      userId: session.id
+    });
+    
+    if (!result.success) {
+      return { success: false, error: result.error || '이미지 생성 실패' };
+    }
+    
     return {
       success: true,
-      image: data.image,
-      // tempUrl은 즉시 사용 가능한 임시 URL
-      tempUrl: data.image.tempUrl || data.image.url
+      image: {
+        id: result.id,
+        url: result.imageUrl
+      },
+      tempUrl: result.imageUrl
     };
   } catch (error) {
     console.error('이미지 생성 오류:', error);
@@ -80,7 +91,7 @@ export async function generateImage(params: {
  * @returns {Promise<ImageGenerationResult>} 생성된 이미지 결과
  */
 export async function generateImageWithText(params: ImageGenerationParams): Promise<ImageGenerationResult> {
-  return await genImageWithText({ ...params, saveMetadata: params.saveMetadata || false });
+  return await genImageWithText(params);
 }
 
 // Image2Image 함수 - 외부로 노출할 서버 액션
@@ -92,7 +103,6 @@ export async function generateImageWithText(params: ImageGenerationParams): Prom
  * @param {number} [strength] - 변형 강도
  * @param {number} [width] - 이미지 너비
  * @param {number} [height] - 이미지 높이
- * @param {boolean} [saveMetadata] - 메타데이터 저장 여부
  * @returns {Promise<ImageGenerationResult>} 생성된 이미지 결과
  */
 export async function generateImageWithImage(
@@ -100,10 +110,9 @@ export async function generateImageWithImage(
   imageUrl: string, 
   strength?: number,
   width?: number,
-  height?: number,
-  saveMetadata: boolean = false
+  height?: number
 ): Promise<ImageGenerationResult> {
-  return await genImageWithImage(prompt, imageUrl, strength, width, height, saveMetadata);
+  return await genImageWithImage(prompt, imageUrl, strength, width, height);
 }
 
 // Cloudflare 업로드 스케줄링 - 외부로 노출할 서버 액션
@@ -168,74 +177,358 @@ export async function publishImage(imageId: number) {
  * 이미지 공개 및 제목 업데이트 함수
  */
 export async function publishImageWithTitle(
-  imageId: number,
-  title: string
-) {
+  imageId: number, 
+  title: string,
+  category: ImageCategory,
+  isAdult: boolean = false,
+): Promise<{ success: boolean; error?: string }> {
   try {
     const session = await getSession();
-    const userId = session?.id;
+    if (!session?.id) {
+      return { success: false, error: '로그인이 필요합니다' };
+    }
 
-    if (!userId) {
+    const image = await db.aIImage.findUnique({
+      where: {
+        id: imageId,
+        userId: session.id
+      }
+    });
+
+    if (!image) {
+      return { success: false, error: '이미지를 찾을 수 없거나 접근 권한이 없습니다' };
+    }
+
+    // 이미지 제목과 카테고리 업데이트 및 공개 처리
+    await db.aIImage.update({
+      where: { id: imageId },
+      data: { 
+        title, 
+        isPublic: true,
+        category,
+        isAdult
+      }
+    });
+
+    return { success: true };
+  } catch (error) {
+    console.error('이미지 공개 오류:', error);
+    return { success: false, error: '이미지 공개 중 서버 오류가 발생했습니다' };
+  }
+}
+
+/**
+ * 이미지 생성 서버 액션 - 간소화 버전
+ * Face Swap 기능 제거 및 로직 간소화
+ */
+export async function generateImageAction({
+  prompt,
+  modelId,
+  width,
+  height,
+  steps,
+  cfgScale,
+  sampler,
+  vae,
+  negativePrompt
+}: {
+  prompt: string;
+  modelId: string;
+  width: number;
+  height: number;
+  steps: number;
+  cfgScale: number;
+  sampler: string;
+  vae: string;
+  negativePrompt?: string;
+}) {
+  try {
+    const session = await getSession();
+    if (!session?.id) {
       return {
         success: false,
         error: '로그인이 필요합니다.'
       };
     }
 
-    if (!imageId || typeof imageId !== 'number') {
-      return {
-        success: false,
-        error: '유효하지 않은 이미지 ID입니다.'
-      };
-    }
+    console.log(`[이미지 생성] 요청 시작: "${prompt.substring(0, 30)}..." (모델: ${modelId})`);
 
-    if (!title || title.trim() === '') {
-      return {
-        success: false,
-        error: '제목을 입력해 주세요.'
-      };
-    }
-
-    // 이미지 존재 여부 확인 및 소유자 확인
-    const image = await db.aIImage.findUnique({
-      where: {
-        id: imageId,
-        userId
-      }
+    // 이미지 생성 요청
+    const result = await genImageWithText({
+      prompt,
+      modelId,
+      width,
+      height,
+      steps,
+      cfgScale,
+      sampler,
+      vae,
+      negativePrompt,
+      userId: session.id
     });
 
-    if (!image) {
+    if (!result.success || !result.imageUrl) {
+      console.error(`[이미지 생성] 실패: ${result.error || '알 수 없는 오류'}`);
       return {
         success: false,
-        error: '이미지를 찾을 수 없거나 접근 권한이 없습니다.'
+        error: result.error || '이미지 생성에 실패했습니다.'
       };
     }
 
-    // 이미지 공개 상태로 업데이트 및 제목 설정
-    const updatedImage = await db.aIImage.update({
-      where: {
-        id: imageId
-      },
-      data: {
-        title: title.trim(),
-        isPublic: true
-      }
-    });
+    console.log(`[이미지 생성] 성공: URL=${result.imageUrl.substring(0, 30)}..., ID=${result.id}`);
 
-    // 캐시 갱신
-    revalidatePath('/image');
-    revalidatePath('/profile');
-    
+    // 결과 이미지가 있고 ID가 있으면 Cloudflare 업로드 처리
+    if (result.id) {
+      // 1. 타이틀 설정 - text-image-[id] 형식으로
+      const title = `text-image-${result.id}`;
+      
+      try {
+        // 2. DB 타이틀 업데이트
+        await db.aIImage.update({
+          where: { id: result.id },
+          data: { 
+            title,
+            // isPermanent 필드를 명시적으로 false로 설정
+            isPermanent: false
+          }
+        });
+        console.log(`[이미지 생성] 타이틀 설정 완료: ${title}`);
+        
+        // 3. Cloudflare 업로드 스케줄링 (비동기로 실행)
+        console.log(`[이미지 생성] Cloudflare 업로드 시작 (ID: ${result.id})`);
+        
+        // 백그라운드 프로세스 실행 확인을 위한 즉시 실행 함수
+        (async () => {
+          try {
+            const uploadResult = await scheduleCloudflareUpload(result.id!, result.imageUrl);
+            console.log(`[이미지 생성] Cloudflare 업로드 시작됨:`, 
+              uploadResult.success ? '성공' : '실패',
+              uploadResult.status
+            );
+            
+            // 업로드 시작 후 5초 뒤에 실제 처리 상태 확인
+            setTimeout(async () => {
+              try {
+                const imageStatus = await db.aIImage.findUnique({
+                  where: { id: result.id }
+                });
+                console.log(`[이미지 생성] 5초 후 상태 확인: ID=${result.id}, isPermanent=${imageStatus?.isPermanent}, fileUrl=${imageStatus?.fileUrl ? 'exists' : 'none'}`);
+              } catch (err) {
+                console.error('[이미지 생성] 상태 확인 실패:', err);
+              }
+            }, 5000);
+          } catch (err) {
+            console.error('[이미지 생성] Cloudflare 업로드 스케줄링 실패:', err);
+          }
+        })();
+      } catch (dbError) {
+        console.error('[이미지 생성] DB 업데이트 실패:', dbError);
+        // DB 업데이트 실패해도 이미지 생성은 성공했으므로 계속 진행
+      }
+    }
+
     return {
       success: true,
-      image: updatedImage
+      imageUrl: result.imageUrl,
+      imageId: result.id
     };
 
   } catch (error) {
-    console.error('이미지 공개 중 오류 발생:', error);
+    const errorMessage = error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다.';
+    console.error('[이미지 생성] 치명적 오류:', errorMessage);
+    
     return {
       success: false,
-      error: '이미지 공개 중 오류가 발생했습니다.'
+      error: errorMessage
+    };
+  }
+}
+
+/**
+ * 사용자의 이미지 목록을 가져오는 함수
+ * 
+ * @param options 이미지 조회 옵션
+ * @returns 이미지 목록
+ */
+export async function getUserImages({
+  page = 1,
+  limit = 12,
+  category,
+  orderBy = 'created_at',
+  direction = 'desc',
+}: {
+  page?: number;
+  limit?: number;
+  category?: string;
+  orderBy?: 'created_at' | 'views' | 'downloads' | 'title';
+  direction?: 'asc' | 'desc';
+}) {
+  try {
+    // 세션 확인
+    const session = await getSession();
+    if (!session?.id) {
+      return { success: false, error: '로그인이 필요합니다', images: [] };
+    }
+
+    // 페이지네이션 계산
+    const skip = (page - 1) * limit;
+    
+    // 카테고리 필터 적용 여부 확인
+    const whereClause: any = {
+      userId: session.id
+    };
+    
+    if (category && category !== 'all') {
+      whereClause.category = category;
+    }
+
+    // 정렬 방향 설정
+    const orderDirection = direction === 'asc' ? 'asc' : 'desc';
+
+    // 전체 이미지 수 조회 (페이지네이션 정보용)
+    const totalCount = await db.aIImage.count({
+      where: whereClause
+    });
+
+    // 이미지 목록 조회
+    const images = await db.aIImage.findMany({
+      where: whereClause,
+      select: {
+        id: true,
+        title: true,
+        fileUrl: true,
+        thumbnailUrl: true,
+        width: true,
+        height: true,
+        isPermanent: true,
+        isPublic: true,
+        category: true,
+        created_at: true,
+        updated_at: true,
+        views: true,
+        downloads: true
+      },
+      orderBy: {
+        [orderBy]: orderDirection
+      },
+      skip,
+      take: limit
+    });
+
+    // 이미지 목록 반환
+    return {
+      success: true,
+      images,
+      pagination: {
+        total: totalCount,
+        page,
+        limit,
+        totalPages: Math.ceil(totalCount / limit)
+      }
+    };
+  } catch (error) {
+    console.error('[이미지 목록 조회 오류]', error);
+    return {
+      success: false,
+      error: '이미지 목록을 불러오는 중 오류가 발생했습니다',
+      images: []
+    };
+  }
+}
+
+/**
+ * 공개된 이미지 목록을 가져오는 함수
+ * 
+ * @param options 이미지 조회 옵션
+ * @returns 이미지 목록
+ */
+export async function getPublicImages({
+  page = 1,
+  limit = 20,
+  category,
+  orderBy = 'created_at',
+  direction = 'desc',
+  showAdult = false,
+}: {
+  page?: number;
+  limit?: number;
+  category?: string;
+  orderBy?: 'created_at' | 'views' | 'downloads' | 'title';
+  direction?: 'asc' | 'desc';
+  showAdult?: boolean;
+}) {
+  try {
+    // 페이지네이션 계산
+    const skip = (page - 1) * limit;
+    
+    // 조회 조건 설정 (공개된 이미지만)
+    const whereClause: any = {
+      isPublic: true
+    };
+    
+    if (category && category !== 'all') {
+      whereClause.category = category;
+    }
+    
+    // 성인 컨텐츠 필터링
+    if (!showAdult) {
+      whereClause.isAdult = false;
+    }
+
+    // 정렬 방향 설정
+    const orderDirection = direction === 'asc' ? 'asc' : 'desc';
+
+    // 전체 이미지 수 조회 (페이지네이션 정보용)
+    const totalCount = await db.aIImage.count({
+      where: whereClause
+    });
+
+    // 이미지 목록 조회
+    const images = await db.aIImage.findMany({
+      where: whereClause,
+      select: {
+        id: true,
+        title: true,
+        fileUrl: true,
+        thumbnailUrl: true,
+        width: true,
+        height: true,
+        category: true,
+        created_at: true,
+        views: true,
+        downloads: true,
+        user: {
+          select: {
+            id: true,
+            username: true,
+            aiImages: true
+          }
+        }
+      },
+      orderBy: {
+        [orderBy]: orderDirection
+      },
+      skip,
+      take: limit
+    });
+
+    // 이미지 목록 반환
+    return {
+      success: true,
+      images,
+      pagination: {
+        total: totalCount,
+        page,
+        limit,
+        totalPages: Math.ceil(totalCount / limit)
+      }
+    };
+  } catch (error) {
+    console.error('[공개 이미지 목록 조회 오류]', error);
+    return {
+      success: false,
+      error: '이미지 목록을 불러오는 중 오류가 발생했습니다',
+      images: []
     };
   }
 } 

@@ -1,7 +1,7 @@
 import React from 'react';
 import { notFound } from 'next/navigation';
 import { db } from "@/shared/lib/db";
-import AIImageDetail from "../components/shared/AIImageDetail";
+import ImageDetailForm from "@/widgets/image/shared/imageDetailForm";
 
 interface PageProps {
   params: {
@@ -84,7 +84,7 @@ export default async function AIImageDetailPage({ params }: PageProps) {
         <p className="text-neutral-400 mt-1">생성된 이미지와 설정 정보를 확인할 수 있습니다.</p>
       </div>
       
-      <AIImageDetail 
+      <ImageDetailForm 
         image={{
           id: image.id,
           title: image.title || "제목 없음",

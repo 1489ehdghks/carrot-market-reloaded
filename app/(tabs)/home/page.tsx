@@ -5,8 +5,8 @@ import { useQuery } from "@tanstack/react-query";
 import { getPostsForList, type PostType, type PostCategory, type PostSummary } from "./actions";
 import { PencilIcon } from "@heroicons/react/24/outline";
 import Link from "next/link";
-import PostCard from "./components/PostCard";
-import PostFilter from "./components/PostFilter";
+import PostCard from "../../../widgets/home/element/PostCard";
+import PostFilter from "../../../widgets/home/form/PostFilter";
 
 // 게시글 목록 컴포넌트
 export default function HomePage() {

@@ -13,7 +13,7 @@ interface ImageUploaderProps {
 export default function ImageUploader({
   onImageUploaded,
   className = '',
-  maxSizeMB = 5,
+  maxSizeMB = 10,
   isDisabled = false
 }: ImageUploaderProps) {
   const [isDragging, setIsDragging] = useState(false);

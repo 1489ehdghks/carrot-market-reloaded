@@ -10,7 +10,7 @@
  * @module entities/auth/service
  */
 
-import { db } from "@/shared/api/db";
+import { db } from "@/shared/lib/db";
 import bcrypt from "bcrypt";
 import { setSession, clearSession } from "@/entities/session/service";
 import { redirect } from "next/navigation";

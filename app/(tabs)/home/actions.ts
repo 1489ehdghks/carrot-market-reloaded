@@ -149,50 +149,34 @@ export async function getPostsForList({
       _count: {
         select: {
           comments: true,
-          likes: true
+          likes: {
+            where: { type: 'like' }
+          }
         }
-      }
+      },
+      likes: session ? {
+        where: { userId: session.id },
+        select: { type: true }
+      } : false
     },
     orderBy,
     skip: (page - 1) * limit,
     take: limit,
   });
 
-  let userLikes: Record<number, string> = {};
-  
-  if (session) {
-    const likes = await db.like.findMany({
-      where: { 
-        userId: session.id,
-        postId: { in: posts.map(p => p.id) }
-      },
-      select: {
-        postId: true,
-        type: true
-      }
-    });
-    
-    userLikes = likes.reduce((acc, like) => {
-      acc[like.postId] = like.type;
-      return acc;
-    }, {} as Record<number, string>);
-  }
-
-  return posts.map(post => {
-    return {
-      ...post,
-      type: post.type as PostType,
-      category: post.category as PostCategory,
-      isLiked: userLikes[post.id] === 'like',
-      isDisliked: userLikes[post.id] === 'dislike',
-      _count: {
-        ...post._count,
-        likes: post._count.likes,
-        dislikes: 0,
-        comments: post._count.comments
-      }
-    };
-  });
+  return posts.map(post => ({
+    ...post,
+    type: post.type as PostType,
+    category: post.category as PostCategory,
+    isLiked: post.likes?.some(like => like.type === 'like') ?? false,
+    isDisliked: post.likes?.some(like => like.type === 'dislike') ?? false,
+    _count: {
+      ...post._count,
+      likes: post._count.likes,
+      dislikes: 0,
+      comments: post._count.comments
+    }
+  }));
 }
 
 export interface PostSummary {

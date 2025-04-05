@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { createPost, checkAdmin } from "../actions";
 import Editor from "./components/Editor";
 import { useEffect, useState } from "react";
-import PostFilter from "../components/PostFilter";
+import PostFilter from "../../../../widgets/home/form/PostFilter";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 

@@ -7,7 +7,7 @@ import Image from "next/image";
 import { getUser, logout, updateAvatar, updateUsername, getUploadUrl, getUserBadges, getUserWorks } from "./actions";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/widgets/shared/custom-tabs";
-import { formatToWon } from "@/lib/utils";
+import { formatToWon } from "@/shared/lib/utils";
 import BadgeSection from "./components/BadgeSection";
 
 export default function ProfilePage() {

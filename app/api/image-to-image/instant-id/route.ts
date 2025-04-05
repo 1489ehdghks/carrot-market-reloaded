@@ -3,7 +3,7 @@ import { z } from 'zod';
 import Replicate from 'replicate';
 import { getSession } from '@/lib/auth';
 import { db } from '@/shared/lib/db';
-import { getImageModelById } from '@/app/(tabs)/image/data/imageModels';
+import { getImageModelById } from '@/shared/models/image/imageModels';
 
 // Replicate API 클라이언트 인스턴스 생성
 const getReplicate = () => {

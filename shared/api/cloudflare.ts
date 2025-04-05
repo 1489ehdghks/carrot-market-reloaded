@@ -10,7 +10,7 @@
  * @module shared/api/cloudflare
  */
 
-import { db } from "@/shared/api/db";
+import { db } from "../lib/db";
 
 /**
  * Cloudflare API 호출에 사용되는 기본 매개변수

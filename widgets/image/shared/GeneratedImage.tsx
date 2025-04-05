@@ -7,9 +7,10 @@ import ImagePublishButton from "./ImagePublishButton";
 import { Button } from "@/widgets/elements/sub/button";
 import { DownloadIcon, RefreshCcw, Share2 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/widgets/shared/custom-tabs";
-import { publishImage } from "../../actions";
+import { publishImage } from "@/app/(tabs)/image/actions";
+
 import { toast } from "sonner";
-import EmptyImageState from "./EmptyImageState";
+import EmptyImageState from "./EmptyImageForm";
 
 interface GeneratedImageProps {
   imageUrl: string;
@@ -28,7 +29,6 @@ export default function GeneratedImage({ imageUrl, imageId, onReset }: Generated
   if (!imageUrl) {
     return (
       <EmptyImageState 
-        message="이미지가 아직 없습니다" 
         showUploadButton={true}
         onUploadClick={() => fileInputRef.current?.click()}
       />

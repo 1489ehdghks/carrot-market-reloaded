@@ -1,17 +1,17 @@
 "use client";
 
 import { useRef, useState, useCallback, useMemo, useEffect } from "react";
-import { generateImageWithImage } from "../../actions";
+import { generateImageAction } from "@/app/(tabs)/image/actions";
 import { Loader2, Wand2, ChevronsUpDown } from "lucide-react";
-import { useImageUpload } from "../../hooks/useImageUpload";
-import { useFormStatusManager } from "../../hooks/useFormStatusManager";
-import { useCloudflareUpload } from "../../hooks/useCloudflareUpload";
-import { handleGlobalError, UserFacingError } from "@/app/lib/error-handling";
+import { useImageUpload } from "@/features/image/hooks/useImageUpload";
+import { useFormStatusManager } from "@/features/image/hooks/useFormStatusManager";
+import { useCloudflareUpload } from "@/features/image/hooks/useCloudflareUpload";
+import { handleGlobalError, UserFacingError } from "@/shared/constants/lib/error-handling";
 import PromptTextarea from "../shared/PromptTextarea";
 import { Button } from "@/widgets/elements/sub/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/form/select";
-import { Label } from "@/components/ui/form/label";
-import { IMAGE_MODELS, getImageModelById } from "../../data/imageModels";
+import { CustomSelect, CustomSelectContent, CustomSelectItem, CustomSelectTrigger, CustomSelectValue } from "@/widgets/elements/custom-select";
+import { CustomLabel } from "@/widgets/elements/custom-label";
+import { IMAGE_MODELS, getImageModelById } from "@/shared/models/image/imageModels";
 import { CustomTooltip } from "@/widgets/shared/custom-tooltip";
 import { CollapsiblePanel } from "../shared/CollapsiblePanel";
 import InstantIDModelSettings from "./InstantIDModelSettings";
@@ -282,207 +282,196 @@ export default function ImageToImageForm({
     return fileKey; // 업로드된 이미지의 키 반환
   };
   
-  // 폼 제출 핸들러
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
+  // 이미지 생성 함수
+  const generateImage = async ({
+    prompt,
+    modelId,
+    width,
+    height,
+    sourceImage,
+    useFaceSwap,
+    faceImage
+  }: {
+    prompt: string;
+    modelId: string;
+    width: number;
+    height: number;
+    sourceImage: File;
+    useFaceSwap?: boolean;
+    faceImage?: File | null;
+  }) => {
     try {
-      // 유효성 검사
-      if (!prompt.trim()) {
-        throw new UserFacingError('프롬프트를 입력해주세요');
+      const formData = new FormData();
+      formData.append('sourceImage', sourceImage);
+
+      const result = await generateImageAction({
+        prompt,
+        modelId,
+        width,
+        height,
+        steps: config.num_inference_steps || 30,
+        cfgScale: config.guidance_scale || 5.0,
+        sampler: config.sampler || 'ddim',
+        vae: config.vae || '',
+        negativePrompt,
+        useFaceSwap,
+        faceImage: faceImage || undefined,
+        faceSwapModelId: config.faceSwapModelId || '',
+        faceSwapStrength: config.faceSwapStrength || 0.8,
+        faceSwapOptions: config.faceSwapOptions || {}
+      });
+
+      if (!result.success) {
+        throw new Error(result.error);
       }
-      
+
+      return result;
+    } catch (error) {
+      console.error('이미지 생성 API 호출 중 오류:', error);
+      throw error;
+    }
+  };
+  
+  // 이미지 생성 핸들러
+  const handleImageGeneration = async () => {
+    try {
+      if (!imageFile) {
+        handleError(new UserFacingError('원본 이미지가 필요합니다'));
+        return;
+      }
+
       if (!selectedModelId) {
-        throw new UserFacingError('변환 모델을 선택해주세요');
+        handleError(new UserFacingError('변환 모델을 선택해주세요'));
+        return;
       }
-      
-      // 모델별 필요 이미지 유효성 검사
+
       if (selectedModel?.requiredImages.sourceImage && !imageFile) {
-        throw new UserFacingError('원본 이미지를 업로드해주세요');
+        handleError(new UserFacingError('원본 이미지를 업로드해주세요'));
+        return;
       }
-      
+
       if (selectedModel?.requiredImages.faceImage && !faceImageFile) {
-        throw new UserFacingError('얼굴 참조 이미지를 업로드해주세요');
+        handleError(new UserFacingError('얼굴 참조 이미지를 업로드해주세요'));
+        return;
       }
-      
-      // 생성 시작
+
       onGenerationStart();
-      startProcess('uploading');
-      
-      // 1. 필요한 이미지 업로드 진행
-      let imageKey = null;
-      if (selectedModel?.requiredImages.sourceImage && imageFile) {
-        imageKey = await prepareImageUpload(imageFile);
-        if (!imageKey) {
-          throw new UserFacingError('원본 이미지 업로드에 실패했습니다');
-        }
-      }
-      
-      // 2. InstantID 모델을 위한 얼굴 이미지 업로드 (필요한 경우)
-      let faceImageKey = null;
-      if (selectedModel?.requiredImages.faceImage && faceImageFile) {
-        faceImageKey = await prepareImageUpload(faceImageFile);
-        if (!faceImageKey) {
-          throw new UserFacingError('얼굴 참조 이미지 업로드에 실패했습니다');
-        }
-      }
-      
-      // 3. API 요청 준비
       startProcess('generating');
-      
-      // 모델별 API 요청 구현
-      let result;
-      
-      if (selectedModelId === 'instantId') {
-        // InstantID 모델 특수 처리
-        // 얼굴 이미지는 반드시 필요
-        if (!faceImageKey) {
-          throw new UserFacingError('InstantID 모델에는 얼굴 참조 이미지가 필요합니다');
-        }
-        
-        console.log('InstantID API 요청 데이터:', {
-          prompt,
-          negative_prompt: negativePrompt,
-          face_image_url: faceImageKey,
-          ip_adapter_scale: config.ip_adapter_scale || 0.8,
-          enhance_face_region: config.enhance_face_region ?? true,
-          width: imageWidth,
-          height: imageHeight
-        });
-        
-        // InstantID 모델은 별도의 API 엔드포인트 사용
-        const instantIdResponse = await fetch('/api/image-to-image/instant-id', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            prompt: prompt,
-            negative_prompt: negativePrompt,
-            // imageKey가 null이면 빈 문자열 전송 (서버에서 무시될 예정)
-            image_url: imageKey || '',
-            face_image_url: faceImageKey,
-            ip_adapter_scale: config.ip_adapter_scale || 0.8,
-            enhance_face_region: config.enhance_face_region ?? true,
-            width: imageWidth,
-            height: imageHeight,
-            num_inference_steps: config.num_inference_steps || 30,
-            guidance_scale: config.guidance_scale || 5.0,
-            seed: -1 // 항상 랜덤 시드 사용
-          }),
-        });
-        
-        if (!instantIdResponse.ok) {
-          const errorData = await instantIdResponse.json().catch(() => ({ error: '응답 처리 중 오류가 발생했습니다' }));
-          console.error('InstantID API 응답 오류:', errorData);
-          throw new UserFacingError(errorData.error || errorData.details || 'InstantID 이미지 변환에 실패했습니다');
-        }
-        
-        result = await instantIdResponse.json();
-      } else {
-        // 다른 모델들은 기본 이미지 변환 API 사용
-        if (!imageKey) {
-          throw new UserFacingError('이미지 변환에 필요한 원본 이미지가 없습니다');
-        }
-        
-        result = await generateImageWithImage(
-          prompt, 
-          imageKey, 
-          strength,
-          imageWidth,
-          imageHeight,
-          true // 메타데이터 저장
-        );
+
+      const result = await generateImage({
+        prompt,
+        modelId: selectedModelId,
+        width: imageWidth,
+        height: imageHeight,
+        sourceImage: imageFile,
+        useFaceSwap: selectedModel?.requiredImages.faceImage,
+        faceImage: faceImageFile
+      });
+
+      if (!result.success) {
+        handleError(new UserFacingError(result.error!));
+        return;
       }
-      
-      if (!result || !result.imageUrl) {
-        throw new Error('이미지 변환에 실패했습니다');
-      }
-      
-      // 4. 생성된 이미지 정보 저장
+
       startProcess('saving');
       const uploadResult = await uploadToPermanentStorage(
         result.imageUrl,
-        result.id?.toString() || `temp-${Date.now()}`,
+        result.imageId?.toString() || `temp-${Date.now()}`,
         imageWidth,
         imageHeight
       );
-      
+
       if (!uploadResult.success || !uploadResult.url) {
-        throw new Error('이미지 저장에 실패했습니다');
+        handleError(new UserFacingError('이미지 저장에 실패했습니다'));
+        return;
       }
-      
-      // 5. 완료 콜백 호출
+
       setSuccess();
       onGenerationComplete(
         uploadResult.url,
         uploadResult.id || String(Date.now()),
         uploadResult.thumbnailUrl || undefined
       );
-      
+
+      // localStorage에 현재 상태 저장
+      localStorage.setItem('model', selectedModelId);
+      localStorage.setItem('width', imageWidth.toString());
+      localStorage.setItem('height', imageHeight.toString());
+      localStorage.setItem('steps', (config.num_inference_steps || 30).toString());
+      localStorage.setItem('cfgScale', (config.guidance_scale || 5.0).toString());
+      localStorage.setItem('sampler', config.sampler || 'ddim');
+      localStorage.setItem('vae', config.vae || '');
+
+      // 경고 메시지가 있는 경우 표시
+      if (result.warning) {
+        console.warn(result.warning);
+      }
+
     } catch (error) {
-      console.error('이미지 변환 오류:', error);
-      handleError(error);
+      console.error('이미지 생성 중 오류 발생:', error);
+      handleError(error instanceof UserFacingError ? error : new UserFacingError('알 수 없는 오류가 발생했습니다'));
+    } finally {
+      startProcess('idle');
     }
   };
   
   // 이미지 크기 설정 UI (로컬 스토리지 저장 부분 추가)
   const renderSizeSettings = () => (
     <div className="space-y-2">
-      <Label className="text-lg font-medium">이미지 크기</Label>
+      <CustomLabel className="text-lg font-medium">이미지 크기</CustomLabel>
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
-          <Select
+          <CustomSelect
             value={String(imageWidth)}
             onValueChange={handleWidthChange}
           >
             <p className="text-xs text-gray-400">너비</p>
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder="너비" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="512">512px</SelectItem>
-              <SelectItem value="768">768px</SelectItem>
-              <SelectItem value="1024">1024px</SelectItem>
-            </SelectContent>
-          </Select>
+            <CustomSelectTrigger className="w-full">
+              <CustomSelectValue placeholder="너비" />
+            </CustomSelectTrigger>
+            <CustomSelectContent>
+              <CustomSelectItem value="512">512px</CustomSelectItem>
+              <CustomSelectItem value="768">768px</CustomSelectItem>
+              <CustomSelectItem value="1024">1024px</CustomSelectItem>
+            </CustomSelectContent>
+          </CustomSelect>
         </div>
         
         <div className="space-y-2">
-          <Select
+          <CustomSelect
             value={String(imageHeight)}
             onValueChange={handleHeightChange}
           >
             <p className="text-xs text-gray-400">높이</p>
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder="높이" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="512">512px</SelectItem>
-              <SelectItem value="768">768px</SelectItem>
-              <SelectItem value="1024">1024px</SelectItem>
-            </SelectContent>
-          </Select>
+            <CustomSelectTrigger className="w-full">
+              <CustomSelectValue placeholder="높이" />
+            </CustomSelectTrigger>
+            <CustomSelectContent>
+              <CustomSelectItem value="512">512px</CustomSelectItem>
+              <CustomSelectItem value="768">768px</CustomSelectItem>
+              <CustomSelectItem value="1024">1024px</CustomSelectItem>
+            </CustomSelectContent>
+          </CustomSelect>
         </div>
       </div>
     </div>
   );
   
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <form onSubmit={handleImageGeneration} className="space-y-6">
       {/* 모델 선택 */}
       <div className="space-y-2">
-        <Label className="text-sm font-medium">변환 모델 선택</Label>
-        <Select 
+        <CustomLabel className="text-sm font-medium">변환 모델 선택</CustomLabel>
+        <CustomSelect 
           value={selectedModelId} 
           onValueChange={handleModelChange}
         >
-          <SelectTrigger className="w-full bg-neutral-800 border-neutral-700">
-            <SelectValue placeholder="모델 선택" />
-          </SelectTrigger>
-          <SelectContent className="bg-neutral-800 border-neutral-700">
+          <CustomSelectTrigger className="w-full bg-neutral-800 border-neutral-700">
+            <CustomSelectValue placeholder="모델 선택" />
+          </CustomSelectTrigger>
+          <CustomSelectContent className="bg-neutral-800 border-neutral-700">
             {IMAGE_MODELS.map((model) => (
-              <SelectItem 
+              <CustomSelectItem 
                 key={model.id} 
                 value={model.id}
                 className="flex items-center justify-between"
@@ -490,10 +479,10 @@ export default function ImageToImageForm({
                 <div className="flex flex-col">
                   <span>{model.name}</span>
                 </div>
-              </SelectItem>
+              </CustomSelectItem>
             ))}
-          </SelectContent>
-        </Select>
+          </CustomSelectContent>
+        </CustomSelect>
         
         {/* 선택된 모델 정보 */}
         {selectedModel && (
@@ -534,7 +523,7 @@ export default function ImageToImageForm({
       {/* 원본 이미지 업로드 영역 - 선택된 모델이 원본 이미지를 필요로 할 때만 표시 */}
       {selectedModel?.requiredImages.sourceImage && (
         <div className="space-y-2">
-          <Label className="text-sm font-medium">원본 이미지 (변환할 이미지)</Label>
+          <CustomLabel className="text-sm font-medium">원본 이미지 (변환할 이미지)</CustomLabel>
           <div className="border border-neutral-800 rounded-lg p-4 bg-neutral-900/50">
             <div className="flex items-center space-x-4">
               <div className="w-32 h-32 bg-neutral-800 border border-neutral-700 rounded-lg overflow-hidden">
@@ -683,9 +672,7 @@ export default function ImageToImageForm({
         {isProcessing ? (
           <>
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            {status === 'uploading' && '이미지 업로드 중...'}
             {status === 'generating' && '이미지 변환 중...'}
-            {status === 'saving' && '이미지 저장 중...'}
           </>
         ) : (
           <>

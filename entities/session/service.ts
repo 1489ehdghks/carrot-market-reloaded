@@ -10,7 +10,7 @@
  */
 
 import { cookies } from "next/headers";
-import { db } from "@/shared/api/db";
+import { db } from "@/shared/lib/db";
 import { Session, ImageSession } from "./types";
 import { getIronSession, IronSession } from "iron-session";
 

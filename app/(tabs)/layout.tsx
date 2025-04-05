@@ -1,5 +1,4 @@
-import MainLayout from "@/components/layout/main-layout";
-import TabBar from "@/components/feature/common/tab-bar";
+import MainLayout from "@/widgets/home/layout/main-layout";
 
 export default function Layout({
   children,

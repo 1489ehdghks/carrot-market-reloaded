@@ -98,32 +98,71 @@ export async function getAIImageList({
   page = 1,
   limit = 20
 }: ListOptions) {
-  return await db.aIImage.findMany({
-    where: {
-      category,
-      isAdult,
-      isPublic: true,
-    },
-    select: {
-      id: true,
-      title: true,
-      thumbnailUrl: true,
-      price: true,
-      category: true,
-      user: {
-        select: {
-          username: true,
-          avatar: true,
-        }
+  // 쿼리 조건 구성
+  const where: any = {
+    isPublic: true
+  };
+  
+  // 카테고리 필터링 (선택 시)
+  if (category) {
+    where.category = category;
+  }
+  
+  // 성인 컨텐츠 필터링
+  if (!isAdult) {
+    where.isAdult = false;
+  }
+  
+  try {
+    // 조건에 맞는 총 개수 먼저 조회
+    const total = await db.aIImage.count({ where });
+    console.log(`[products] 이미지 총 개수: ${total}, 조건:`, where);
+    
+    if (total === 0) {
+      console.log('[products] 조건에 맞는 이미지가 없습니다');
+      return [];
+    }
+    
+    // 실제 데이터 조회
+    const images = await db.aIImage.findMany({
+      where,
+      select: {
+        id: true,
+        title: true,
+        thumbnailUrl: true,
+        fileUrl: true, // 썸네일이 없을 경우 대체 사용
+        isPermanent: true, // 영구 URL 여부 확인용
+        price: true,
+        category: true,
+        user: {
+          select: {
+            username: true,
+            avatar: true,
+          }
+        },
+        created_at: true,
+        isAdult: true,
       },
-      created_at: true,
-    },
-    orderBy: {
-      created_at: "desc"
-    },
-    skip: (page - 1) * limit,
-    take: limit,
-  });
+      orderBy: {
+        created_at: "desc"
+      },
+      skip: (page - 1) * limit,
+      take: limit,
+    });
+    
+    console.log(`[products] 이미지 ${images.length}개 조회 완료`);
+    
+    // 썸네일 URL 처리 (썸네일이 없으면 원본 URL 사용)
+    const processedImages = images.map(image => ({
+      ...image,
+      thumbnailUrl: (image.isPermanent && image.thumbnailUrl) ? image.thumbnailUrl : image.fileUrl
+    }));
+    
+    return processedImages;
+  } catch (error) {
+    console.error('[products] 이미지 목록 조회 오류:', error);
+    return [];
+  }
 }
 
 export async function getAIVideoList({
@@ -162,9 +201,19 @@ export async function getAIVideoList({
 
 // 기존의 getProducts 함수는 이렇게 수정
 export async function getProducts(options: GetProductsOptions) {
-  return options.type === "image" 
-    ? getAIImageList(options)
-    : getAIVideoList(options);
+  console.log('[products] 상품 조회 요청:', options);
+  
+  try {
+    const products = options.type === "image" 
+      ? await getAIImageList(options)
+      : await getAIVideoList(options);
+      
+    console.log(`[products] 상품 조회 결과: ${products.length}개`);
+    return products;
+  } catch (error) {
+    console.error('[products] 상품 조회 오류:', error);
+    return [];
+  }
 }
 
 export async function selectProductWithUser(id: number, type: ProductType) {
