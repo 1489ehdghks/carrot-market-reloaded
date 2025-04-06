@@ -113,6 +113,10 @@ export default function TextToImageForm({
     if (typeof window !== 'undefined') {
       const value = localStorage.getItem(key);
       if (value === null) return defaultValue;
+
+      if (key === 'height' || key === 'width') {
+        return value;
+      }
       try {
         return JSON.parse(value);
       } catch {
@@ -364,11 +368,6 @@ export default function TextToImageForm({
       if (!prompt || prompt.trim().length < 3) {
         throw new Error('프롬프트는 최소 3자 이상 입력해주세요.');
       }
-      
-      if (width * height > 1024 * 1024) {
-        throw new Error('이미지 크기가 너무 큽니다. 최대 1024x1024 이하로 설정해주세요.');
-      }
-      
       // 이미지 생성 상태 설정
       setLoadingState('generating');
       
