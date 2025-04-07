@@ -3,7 +3,7 @@
  * 텍스트-이미지, 이미지-텍스트, 이미지 편집 등 여러 부분에서 재사용 가능
  */
 
-import { UserFacingError, SystemError, handleGlobalError } from '../../constants/lib/error-handling';
+import { UserFacingError, SystemError, handleGlobalError } from '../error-handling';
 
 // 이미지 생성 관련 에러 타입
 export type ImageGenerationErrorType = 

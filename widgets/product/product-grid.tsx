@@ -70,7 +70,7 @@ export default function ProductGrid({
                     </span>
                   )}
                   <Image
-                    src={failedImages[product.id] ? '/images/placeholder.png' : product.thumbnailUrl}
+                    src={failedImages[product.id] ? '/image/no-image.png' : product.thumbnailUrl}
                     alt={product.title}
                     fill
                     className="object-cover transition-transform group-hover:scale-105"
@@ -83,7 +83,7 @@ export default function ProductGrid({
                     <p className="text-xs text-neutral-500 mt-1">{product.user.username}</p>
                   )}
                   {product.category && (
-                    <span className="text-xs bg-neutral-200 dark:bg-neutral-800 px-1.5 py-0.5 rounded mt-1 inline-block">
+                    <span className="text-xs bg-neutral-800 px-1.5 py-0.5 rounded mt-1 inline-block">
                       {product.category}
                     </span>
                   )}

@@ -17,6 +17,7 @@ import { useInfiniteQuery } from '@tanstack/react-query';
 import { getUserImages, getPublicImages } from './actions';
 import { toast } from 'sonner';
 import EmptyImageState from '@/widgets/image/shared/EmptyImageForm';
+import { ImageSelectModal } from '@/widgets/shared/imageSelectModal';
 
 // 동적 임포트로 필요할 때만 로드되도록 설정
 const TextToImageForm = dynamic(() => import('@/widgets/image/textToImage/TextToImageForm'), {
@@ -96,6 +97,7 @@ export default function ImagePage() {
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [isSelectedImagePublic, setIsSelectedImagePublic] = useState<boolean>(false); // 선택된 이미지의 공개 상태
   const [showAdultContent, setShowAdultContent] = useState<boolean>(false); // 성인 컨텐츠 표시 여부
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   // 이미지 목록 로딩
   // @ts-ignore - 타입 오류 무시, 브라우저에서는 문제없이 작동함
@@ -326,6 +328,7 @@ export default function ImagePage() {
     setSelectedImage(imageUrl);
     setSelectedImageId(imageId.toString());
     setIsSelectedImagePublic(isPublic);
+    setIsModalOpen(true); // 모달 열기
   };
 
   // 이미지 목록 데이터 안전하게 준비
@@ -520,7 +523,7 @@ export default function ImagePage() {
                                 loading="lazy"
                                 onError={(e) => {
                                   // 이미지 로드 실패 시 기본 이미지로 대체
-                                  (e.target as HTMLImageElement).src = '/images/placeholder.png';
+                                  (e.target as HTMLImageElement).src = '/image/placeholder.png';
                                 }}
                               />
                               
@@ -676,7 +679,7 @@ export default function ImagePage() {
                                 loading="lazy"
                                 onError={(e) => {
                                   // 이미지 로드 실패 시 기본 이미지로 대체
-                                  (e.target as HTMLImageElement).src = '/images/placeholder.png';
+                                  (e.target as HTMLImageElement).src = '/image/no-image.png';
                                 }}
                               />
                               
@@ -827,6 +830,16 @@ export default function ImagePage() {
           }}
           defaultCategory="2d"
           imageUrl={selectedImage || undefined}
+        />
+      )}
+      
+      {/* 모달 추가 */}
+      {isModalOpen && selectedImageId && selectedImage && (
+        <ImageSelectModal
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          imageId={Number(selectedImageId)}
+          imageUrl={selectedImage}
         />
       )}
     </div>

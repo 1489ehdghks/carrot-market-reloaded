@@ -1,8 +1,8 @@
 import { db } from "@/shared/lib/db";
-import getSession from "@/shared/lib/session";
+import { getSession } from "@/shared/lib/auth";
 import Image from "next/image";
 import Link from "next/link";
-import { formatToTimeAgo } from "@/lib/utils";
+import { formatToTimeAgo } from "@/shared/lib/utils";
 
 async function getChatRooms() {
   const session = await getSession();

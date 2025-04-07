@@ -2,8 +2,8 @@
 import { PASSWORD_MIN_LENGTH } from "@/shared/lib/constants";
 import { z } from "zod";
 import { redirect } from "next/navigation";
-import { register } from "@/entities/auth/service";
-import { RegisterRequest, RegisterResponse, AuthErrorType } from "@/entities/auth/types";
+import { register } from "@/app/api/auth/auth.service";
+import { RegisterRequest, RegisterResponse, AuthErrorType } from "@/app/api/auth/auth.types";
 
 type FormState = {
     fieldErrors?: {

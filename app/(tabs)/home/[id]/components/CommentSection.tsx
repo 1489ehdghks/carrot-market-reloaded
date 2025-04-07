@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { createComment, getCommentsForPost } from "../actions";
 import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
-import { formatDate } from "@/lib/utils";
+import { formatDate } from "@/shared/lib/utils";
 
 export default function CommentSection({ postId }: { postId: number }) {
   const queryClient = useQueryClient();

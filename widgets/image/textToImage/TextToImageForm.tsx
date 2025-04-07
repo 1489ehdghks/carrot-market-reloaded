@@ -554,7 +554,7 @@ export default function TextToImageForm({
     
     try {
       console.log(`[백그라운드 처리] 이미지 ID ${imageId} 상태 확인 요청 중...`);
-      const response = await fetch(`/api/images/${imageId}/status`);
+      const response = await fetch(`/api/image/${imageId}/image-status`);
       
       if (!response.ok) {
         const errorText = await response.text();

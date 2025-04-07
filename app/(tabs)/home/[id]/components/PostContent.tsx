@@ -1,8 +1,5 @@
 "use client";
-
-import { formatDate } from "@/lib/utils";
-import UserProfileCard from "@/components/feature/user/user-profile-card";
-import { CustomTooltip } from "@/widgets/shared/custom-tooltip";
+import { formatDate } from "@/shared/lib/utils";
 import { Post } from "@/app/(tabs)/home/actions";
 import Image from "next/image";
 

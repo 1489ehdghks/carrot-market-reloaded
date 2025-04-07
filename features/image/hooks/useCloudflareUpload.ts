@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from 'react';
-import { handleGlobalError, UserFacingError } from '@/shared/constants/lib/error-handling';
+import { handleGlobalError, UserFacingError } from '@/shared/lib/error-handling';
 import { CloudflareUploadResult } from '@/shared/lib/cloudflare';
 
 /**
@@ -47,7 +47,7 @@ export function useCloudflareUpload() {
         size: width && height ? `${width}x${height}` : "알 수 없음"
       });
       
-      const response = await fetch('/api/cloudflare-upload', {
+      const response = await fetch('/features/image/api/cloudflare-upload', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -139,7 +139,7 @@ export function useCloudflareUpload() {
       if (width) formData.append('width', width.toString());
       if (height) formData.append('height', height.toString());
       
-      const response = await fetch('/api/image-upload', {
+      const response = await fetch('/features/image/api/cloudflare-upload', {
         method: 'POST',
         body: formData,
       });

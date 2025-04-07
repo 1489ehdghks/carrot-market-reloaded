@@ -90,7 +90,7 @@ export default function SpecialFeaturesSection() {
           className="mt-12 p-8 rounded-2xl overflow-hidden relative"
         >
           <div className="absolute inset-0 bg-black/80 backdrop-blur-md z-0" />
-          <div className="absolute inset-0 bg-[url('/images/pattern.svg')] opacity-5 z-0" />
+          <div className="absolute inset-0 bg-[url('/image/no-image.png')] opacity-5 z-0" />
           
           <div className="relative z-10 flex flex-col md:flex-row gap-8 items-center">
             <div className="flex-1">

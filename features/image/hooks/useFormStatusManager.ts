@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback } from 'react';
-import { handleGlobalError, UserFacingError } from '@/shared/constants/lib/error-handling';
+import { handleGlobalError, UserFacingError } from '@/shared/lib/error-handling';
 import { useFormStatus } from 'react-dom';
 
 export type FormStatus = 'idle' | 'validating' | 'submitting' | 'processing' | 'generating' | 'uploading' | 'saving' | 'success' | 'error';

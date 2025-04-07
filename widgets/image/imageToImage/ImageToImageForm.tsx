@@ -6,7 +6,7 @@ import { Loader2, Wand2, ChevronsUpDown } from "lucide-react";
 import { useImageUpload } from "@/features/image/hooks/useImageUpload";
 import { useFormStatusManager } from "@/features/image/hooks/useFormStatusManager";
 import { useCloudflareUpload } from "@/features/image/hooks/useCloudflareUpload";
-import { handleGlobalError, UserFacingError } from "@/shared/constants/lib/error-handling";
+import { handleGlobalError, UserFacingError } from "@/shared/lib/error-handling";
 import PromptTextarea from "../shared/PromptTextarea";
 import { Button } from "@/widgets/elements/sub/button";
 import { CustomSelect, CustomSelectContent, CustomSelectItem, CustomSelectTrigger, CustomSelectValue } from "@/widgets/elements/custom-select";
@@ -269,7 +269,7 @@ export default function ImageToImageForm({
     formData.append('file', file);
     
     // 서버에 업로드
-    const uploadResponse = await fetch('/api/image-upload', {
+    const uploadResponse = await fetch('/features/image/api/image-upload', {
       method: 'POST',
       body: formData
     });

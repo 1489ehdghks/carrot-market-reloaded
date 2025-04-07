@@ -107,10 +107,3 @@ export default async function Page({ params }: PageProps) {
     </dialog>
     );
 }
-
-export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
-  const { id } = await params;
-  return {
-    title: `Product ${id}`,
-  };
-}

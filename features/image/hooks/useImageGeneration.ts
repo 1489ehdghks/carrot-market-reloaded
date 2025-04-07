@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { handleGlobalError, UserFacingError } from "@/shared/constants/lib/error-handling";
+import { handleGlobalError, UserFacingError } from "@/shared/lib/error-handling";
 import { useCloudflareUpload } from "./useCloudflareUpload";
 
 type GenerationStatus = 'idle' | 'generating' | 'uploading' | 'saving' | 'complete' | 'error';

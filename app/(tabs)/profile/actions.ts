@@ -3,7 +3,7 @@
 import { db } from "@/shared/lib/db";
 import getSession from "@/shared/lib/session";
 import { redirect } from "next/navigation";
-import { logout as authLogout } from "@/entities/auth/service";
+import { logout as authLogout } from "@/app/api/auth/auth.service";
 
 export async function getUser() {
   const session = await getSession();

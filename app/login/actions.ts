@@ -2,9 +2,9 @@
 
 import { z } from "zod";
 import { PASSWORD_MIN_LENGTH } from "@/shared/lib/constants";
-import { login as authLogin } from "@/entities/auth/service";
+import { login as authLogin } from "@/app/api/auth/auth.service";
 import { redirect } from "next/navigation";
-import { LoginRequest, LoginResponse, AuthErrorType } from "@/entities/auth/types";
+import { LoginRequest, LoginResponse, AuthErrorType } from "@/app/api/auth/auth.types";
 
 type LoginFormState = {
     fieldErrors?: {

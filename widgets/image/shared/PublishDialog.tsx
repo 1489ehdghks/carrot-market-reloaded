@@ -30,7 +30,7 @@ import {
   ImageCategory, 
   IMAGE_CATEGORY_GROUPS,
   getAllCategoryGroups
-} from '@/shared/constants/imageCategories';
+} from '@/features/image/image-category-types';
 import { CustomTooltip } from '@/widgets/shared/custom-tooltip';
 import { AlertCircle, Info, Lock, Image as ImageIcon, EyeOff } from 'lucide-react';
 

@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { useNotification } from "@/widgets/shared/custom-notification";
-import { UserFacingError, SystemError, registerErrorHandler } from "../constants/lib/error-handling";
+import { UserFacingError, SystemError, registerErrorHandler } from "./error-handling";
 
 /**
  * 에러 알림 컴포넌트 - 에러 핸들러를 등록하고 알림을 표시합니다.

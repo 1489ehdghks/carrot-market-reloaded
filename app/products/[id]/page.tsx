@@ -3,7 +3,7 @@ import {db} from "@/shared/lib/db";
 import getSession from "@/shared/lib/session";
 import Image from "next/image";
 import { UserIcon } from "@heroicons/react/24/solid";
-import { formatToWon } from "@/lib/utils";
+import { formatToWon } from "@/shared/lib/utils";
 import { redirect } from "next/navigation";
 import { revalidateTag } from "next/cache";
 import { getCachedProduct } from "./actions";
@@ -19,7 +19,7 @@ async function getIsOwner(userId:number){
 const deleteProduct = async (formData:FormData) => {
   "use server";
   const id = formData.get("id");
-  await db.product.delete({
+  await db.post.delete({
     where: { id: Number(id) },
   });
   revalidateTag('products');

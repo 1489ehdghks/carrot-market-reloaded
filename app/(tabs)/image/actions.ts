@@ -1,18 +1,18 @@
 "use server";
 import {
   generateImageWithText as genImageWithText,
-  generateImageWithImage as genImageWithImage,
+  // generateImageWithImage as genImageWithImage,
   scheduleCloudflareUpload as scheduleUpload,
   getImageUploadUrl as getUploadUrl,
   saveGeneratedImage as saveImage,
   publishImage as publish,
   type ImageGenerationParams,
   type ImageGenerationResult
-} from "@/features/image/api/imageService";
+} from "@/features/image/process/imageService";
 import { db } from '@/shared/lib/db';
 import getSession from "@/shared/lib/session";
 import { revalidatePath } from 'next/cache';
-import { ImageCategory } from '@/shared/constants/imageCategories';
+import { ImageCategory } from '@/features/image/image-category-types';
 
 /**
  * 최적화된 이미지 생성 함수
@@ -105,15 +105,15 @@ export async function generateImageWithText(params: ImageGenerationParams): Prom
  * @param {number} [height] - 이미지 높이
  * @returns {Promise<ImageGenerationResult>} 생성된 이미지 결과
  */
-export async function generateImageWithImage(
-  prompt: string, 
-  imageUrl: string, 
-  strength?: number,
-  width?: number,
-  height?: number
-): Promise<ImageGenerationResult> {
-  return await genImageWithImage(prompt, imageUrl, strength, width, height);
-}
+// export async function generateImageWithImage(
+//   prompt: string, 
+//   imageUrl: string, 
+//   strength?: number,
+//   width?: number,
+//   height?: number
+// ): Promise<ImageGenerationResult> {
+//   return await genImageWithImage(prompt, imageUrl, strength, width, height);
+// }
 
 // Cloudflare 업로드 스케줄링 - 외부로 노출할 서버 액션
 /**

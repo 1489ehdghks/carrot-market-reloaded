@@ -92,49 +92,6 @@ export function getModelDefaultSettings(modelId: string): any {
   return MODEL_DEFAULT_SETTINGS[modelId] || MODEL_DEFAULT_SETTINGS['default'];
 }
 
-/**
- * 생성된 이미지 URL을 추출합니다.
- * 
- * Replicate API 응답에서 이미지 URL을 추출하는 헬퍼 함수
- * 
- * @param output API 응답 객체
- * @returns 이미지 URL 문자열 또는 null
- */
-export function extractImageUrl(output: any): string | null {
-  if (!output) return null;
-  
-  // 출력이 배열인 경우 (일반적인 응답 형식)
-  if (Array.isArray(output) && output.length > 0) {
-    return output[0];
-  }
-  
-  // 출력이 문자열인 경우 (단일 URL)
-  if (typeof output === 'string') {
-    return output;
-  }
-  
-  // 출력이 객체인 경우 (특정 모델의 응답 형식)
-  if (output && typeof output === 'object') {
-    if (output.output) {
-      if (typeof output.output === 'string') {
-        return output.output;
-      } else if (Array.isArray(output.output) && output.output.length > 0) {
-        return output.output[0];
-      }
-    }
-    
-    // 다른 형태의 응답도 처리
-    if (output.image) {
-      return output.image;
-    }
-    
-    if (output.images && Array.isArray(output.images) && output.images.length > 0) {
-      return output.images[0];
-    }
-  }
-  
-  return null;
-}
 
 /**
  * 텍스트의 토큰 수를 계산합니다.
