@@ -43,6 +43,24 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  // preload 경고 해결을 위한 설정
+  experimental: {
+    optimizeCss: true,
+    // 불필요한 prefetch 방지를 위한 설정
+    optimisticClientCache: true,
+  },
+  // 이미지 최적화 방지를 위한 설정
+  reactStrictMode: true,
+  // 클라우드플레어 API 요청에 대한 리디렉션 처리
+  async redirects() {
+    return [
+      {
+        source: '/api/cloudflare-upload',
+        destination: '/api/image/cloudflare-upload',
+        permanent: true,
+      },
+    ];
+  },
 };
 
 export default nextConfig;

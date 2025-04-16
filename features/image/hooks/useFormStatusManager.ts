@@ -59,7 +59,10 @@ export function useFormStatusManager(initialStatus: FormStatus = 'idle'): FormSt
     setErrorMessage(message);
     setErrorType(type);
     
-    handleGlobalError(new UserFacingError(message));
+    // 전역 에러 핸들러는 특정 상황에서만 호출
+    if (type === 'server' || type === 'network') {
+      handleGlobalError(new UserFacingError(message));
+    }
   }, []);
   
   // 상태 초기화

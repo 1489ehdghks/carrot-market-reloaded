@@ -24,6 +24,7 @@ import {
   CustomSelectValue 
 } from "@/widgets/elements/custom-select";
 import { generateImageAction } from '@/app/(tabs)/image/actions';
+import { Loader2, Wand2, Info } from "lucide-react";
 
 // 클라우드플레어 업로드 및 DB 저장 관련 타입 정의
 interface GenerationResult {
@@ -489,44 +490,6 @@ export default function TextToImageForm({
     throw new Error('서버 연결 실패. 모든 재시도가 실패했습니다.');
   }, []);
 
-  // 페이지 로드 시 저장된 생성 상태 확인 및 복원
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    
-    // 로컬 스토리지에서 이미지 생성 상태 가져오기
-    const savedGenerationStatus = localStorage.getItem(GENERATION_STATUS_KEY);
-    
-    if (savedGenerationStatus) {
-      try {
-        const status = JSON.parse(savedGenerationStatus);
-        
-        // 생성 중인 상태라면
-        if (status.isGenerating && status.imageId) {
-          console.log(`[이미지 생성] 이전 생성 작업 복원: ID=${status.imageId}, 프롬프트="${status.prompt?.substring(0, 20)}..."`);
-          
-          // 상태 복원
-          setGeneratedImageId(status.imageId);
-          setUploadStatus('pending');
-          setLoadingState('finalizing');
-          setIsGenerating(true);
-          
-          // 이미지 상태 확인 시작
-          setTimeout(() => {
-            checkImageUploadStatus(status.imageId);
-          }, 1000);
-          
-          showNotification({
-            title: '이미지 생성 복원',
-            message: '이전에 시작된 이미지 생성 작업을 계속합니다',
-            type: 'info'
-          });
-        }
-      } catch (error) {
-        console.error('저장된 생성 상태 파싱 오류:', error);
-        localStorage.removeItem(GENERATION_STATUS_KEY);
-      }
-    }
-  }, []);
 
   // 생성 상태 변경 시 로컬 스토리지 업데이트
   useEffect(() => {
@@ -548,96 +511,6 @@ export default function TextToImageForm({
     }
   }, [isGenerating, generatedImageId, textPrompt]);
 
-  // Cloudflare 이미지 업로드 상태 확인 함수
-  const checkImageUploadStatus = useCallback(async (imageId: string) => {
-    if (!imageId) return;
-    
-    try {
-      console.log(`[백그라운드 처리] 이미지 ID ${imageId} 상태 확인 요청 중...`);
-      const response = await fetch(`/api/image/${imageId}/image-status`);
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error(`이미지 상태 확인 실패: HTTP ${response.status} - ${errorText}`);
-        return;
-      }
-      
-      const data = await response.json();
-      console.log(`[백그라운드 처리] 이미지 ID ${imageId} 업로드 상태:`, {
-        isPermanent: data.isPermanent,
-        status: data.status,
-        fileUrl: data.fileUrl ? `${data.fileUrl.substring(0, 30)}...` : 'None'
-      });
-      
-      // 영구 URL이 있고 isPermanent가 true이면 업로드 완료
-      if (data.isPermanent && data.fileUrl) {
-        console.log(`[백그라운드 처리] 이미지 ID ${imageId} Cloudflare 업로드 완료!`);
-        setUploadStatus('success');
-        // URL 업데이트 콜백이 있으면 호출
-        if (onUrlUpdate) {
-          onUrlUpdate(imageId, data.fileUrl);
-          console.log(`[백그라운드 처리] onUrlUpdate 호출: ID=${imageId}, URL=${data.fileUrl.substring(0, 30)}...`);
-          
-          // 생성 완료됨을 알림
-          showNotification({
-            title: '이미지 생성 완료',
-            message: '이미지가 성공적으로 생성되고 저장되었습니다.',
-            type: 'success'
-          });
-
-          // 생성 상태 클리어
-          setIsGenerating(false);
-          setLoadingState('idle');
-          localStorage.removeItem(GENERATION_STATUS_KEY);
-        }
-      } else if (data.error) {
-        console.error(`[백그라운드 처리] 이미지 ID ${imageId} 처리 오류:`, data.error);
-        setUploadStatus('error');
-      }
-    } catch (error) {
-      console.error(`[백그라운드 처리] 이미지 ID ${imageId} 상태 확인 중 오류:`, error);
-    }
-  }, [onUrlUpdate, showNotification]);
-
-  // 이미지 ID가 있을 때 주기적으로 업로드 상태 확인
-  useEffect(() => {
-    if (!generatedImageId || uploadStatus !== 'pending') return;
-    
-    console.log(`[백그라운드 처리] 이미지 ID ${generatedImageId} 업로드 상태 모니터링 시작`);
-    
-    // 첫 번째 확인은 5초 후 (Cloudflare 업로드가 시작될 시간 고려)
-    const initialDelay = setTimeout(() => {
-      checkImageUploadStatus(generatedImageId);
-      
-      // 주기적인 확인 시작 (최대 120초)
-      const maxChecks = 24; // 5초 간격으로 24번 = 120초 (2분)
-      let checkCount = 0;
-      
-      const intervalId = setInterval(() => {
-        checkCount++;
-        
-        if (checkCount >= maxChecks || uploadStatus !== 'pending') {
-          clearInterval(intervalId);
-          if (uploadStatus === 'pending') {
-            console.log(`[백그라운드 처리] 이미지 ID ${generatedImageId} 업로드 상태 확인 타임아웃`);
-            // 백그라운드 알림 제거 (타임아웃 시 알림을 표시하지 않음)
-            setUploadStatus('idle');
-          }
-          return;
-        }
-        
-        checkImageUploadStatus(generatedImageId);
-      }, 5000); // 5초마다 체크
-      
-      return () => {
-        clearInterval(intervalId);
-      };
-    }, 5000);
-    
-    return () => {
-      clearTimeout(initialDelay);
-    };
-  }, [generatedImageId, uploadStatus, checkImageUploadStatus, showNotification]);
 
   // 이미지 생성 핸들러 (개선된 에러 핸들링)
   const handleImageGeneration = useCallback(async () => {
@@ -851,9 +724,7 @@ export default function TextToImageForm({
         <div className="flex items-center gap-1">
           <span>{config.name}</span>
           <CustomTooltip title={config.name} description={config.description}>
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-neutral-400" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-            </svg>
+            <Info className="h-4 w-4 text-neutral-400" />
           </CustomTooltip>
         </div>
         {config.type === 'number' && <span className="text-orange-500">{effectiveValue}</span>}
@@ -1048,9 +919,7 @@ export default function TextToImageForm({
                 title="샘플러" 
                 description="다양한 샘플링 방식은 이미지 생성 속도와 품질에 영향을 줍니다."
               >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-neutral-400" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                </svg>
+                <Info className="h-4 w-4 text-neutral-400" />
               </CustomTooltip>
             </label>
             <select
@@ -1068,35 +937,7 @@ export default function TextToImageForm({
             </select>
           </div>
           
-          {/* VAE 설정 - 지원하는 모델에만 표시 */}
-          {selectedModel.vae && (
-          <div>
-              <label className="flex items-center gap-1 text-sm mb-1">
-                <span>VAE 설정</span>
-                <CustomTooltip 
-                  title="VAE" 
-                  description="이미지의 색상과 대비에 영향을 줍니다."
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-neutral-400" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                  </svg>
-                </CustomTooltip>
-            </label>
-            <select
-              value={selectedVae}
-              onChange={(e) => {
-                setSelectedVae(e.target.value);
-              }}
-              className="w-full bg-neutral-800 rounded-lg p-2 text-sm"
-            >
-                {VAE_OPTIONS.map((vae) => (
-                <option key={`vae-${vae.id}`} value={vae.id} title={vae.description}>
-                  {vae.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          )}
+      
         </div>
       </CollapsiblePanel>
       

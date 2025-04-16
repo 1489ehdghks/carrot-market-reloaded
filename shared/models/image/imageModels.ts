@@ -6,7 +6,9 @@ export interface ImageModel {
   apiModel: string;
   price: number; // 달러 기준 API 호출 비용
   tokenPrice?: number; // 계산된 토큰 가격 (자동 계산)
-  
+  version?: string; // Replicate API 버전 정보
+  additionalParams?: Record<string, any>; // 모델별 추가 매개변수
+
   // 필요한 이미지 타입 정의
   requiredImages: {
     sourceImage?: boolean; // 원본 이미지 필요 여부
@@ -14,12 +16,6 @@ export interface ImageModel {
     // 추후 다른 이미지 타입을 여기에 추가할 수 있음
   };
   
-  // 모델 기능 정보
-  features: {
-    quality: 'low' | 'medium' | 'high' | 'ultra';
-    speed: 'slow' | 'medium' | 'fast' | 'ultra';
-    isRealtime?: boolean;
-  };
   
   // 모델별 설정 옵션
   configOptions?: {
@@ -34,108 +30,76 @@ export interface ImageModel {
       options?: { value: string; label: string }[];
     };
   };
+  recommendedSettings: string;
 }
 
 // Image to Image 모델 데이터
 export const IMAGE_MODELS: ImageModel[] = [
-  // InstantID 모델 (얼굴 특성 적용)
+  // Realism XL 모델 (이미지 변환)
   {
-    id: "instantId",
-    name: "InstantID (face swap)",
-    description: "이미지에서 얼굴 특성을 추출하여 적용합니다.",
-    apiModel: "zsxkib/instant-id-ipadapter-plus-face:71ce3f946b93b23a4a927d84969f2fc9c9e3bb3f19dd66d38c74cf543890461e",
-    price: 0.025,
+    id: "realism-xl",
+    name: "Realism XL (Image to Image)",
+    description: "고품질의 사실적인 이미지 변환을 제공합니다.",
+    apiModel: "asiryan/realism-xl:ff26a1f71bc27f43de016f109135183e0e4902d7cdabbcbb177f4f8817112219",
+    price: 0.0043,
+    version: "ff26a1f71bc27f43de016f109135183e0e4902d7cdabbcbb177f4f8817112219",
     
-    // InstantID는 얼굴 참조 이미지만 필요
+    // Realism XL은 원본 이미지만 필요
     requiredImages: {
-      sourceImage: false,
-      faceImage: true
-    },
-    
-    features: {
-      quality: 'high',
-      speed: 'medium'
+      sourceImage: true,
+      faceImage: false
     },
     
     configOptions: {
-      prompt: {
-        name: "프롬프트",
-        description: "생성할 이미지에 대한 설명을 입력하세요.",
-        type: "text",
-        default: "a portrait photo of a person"
-      },
-      negative_prompt: {
-        name: "네거티브 프롬프트",
-        description: "이미지에 포함하지 않을 요소를 설명하세요.",
-        type: "text",
-        default: "bad quality, blurry"
+      guidance_scale: {
+        name: "CFG 스케일",
+        description: "생성 과정에서 모델이 입력 텍스트(프롬프트)를 얼마나 중요하게 여길지 결정하는 변수",
+        type: "number",
+        default: 3.5,
+        min: 1,
+        max: 50,
+        step: 0.5
       },
       num_inference_steps: {
-        name: "추론 단계",
-        description: "이미지 생성 품질에 영향을 미치는 단계 수입니다. 높을수록 더 좋은 품질이지만 더 오래 걸립니다.",
+        name: "steps",
+        description: "이미지 생성 과정에서 모델이 노이즈를 점진적으로 제거하며 이미지를 세밀화하는 데 사용되는 단계의 수",
         type: "number",
-        default: 30,
-        min: 20,
-        max: 50,
+        default: 40,
+        min: 1,
+        max: 100,
         step: 1
       },
-      guidance_scale: {
-        name: "가이던스 스케일",
-        description: "텍스트 프롬프트에 따라 이미지가 얼마나 생성될지를 제어합니다. 높을수록 프롬프트를 더 충실히 따릅니다.",
+
+      strength: {
+        name: "strength",
+        description: "Prompt strength when using img2img, 낮을수록 이미지의 영향이 강함. 높으면 프롬프트의 영향이 강함.",
         type: "number",
-        default: 5.0,
-        min: 1.0,
-        max: 10.0,
-        step: 0.1
+        default: 0.4,
+        min: 0,
+        max: 1,
+        step: 0.01
       },
-      ip_adapter_scale: {
-        name: "IP 어댑터 스케일",
-        description: "얼굴 특성이 최종 이미지에 얼마나 강하게 적용될지 제어합니다.",
-        type: "number",
-        default: 0.8,
-        min: 0.1,
-        max: 1.0,
-        step: 0.05
-      },
-      enhance_face_region: {
-        name: "얼굴 영역 향상",
-        description: "얼굴 영역을 추가로 향상시킵니다.",
-        type: "boolean",
-        default: true
-      },
-      seed: {
-        name: "시드",
-        description: "이미지 생성의 랜덤성을 제어합니다. 동일한 시드는 유사한 이미지를 생성합니다.",
-        type: "number",
-        default: -1,
-        min: -1,
-        max: 2147483647,
-        step: 1
-      },
-      width: {
-        name: "너비",
-        description: "출력 이미지의 너비를 픽셀 단위로 설정합니다.",
+      scheduler: {
+        name: "scheduler",
+        description: "이미지의 묘사에 영향을 주는 변수`",
         type: "select",
-        default: "768",
+        default: 'K_EULER_ANCESTRAL',
         options: [
-          { value: "512", label: "512px" },
-          { value: "768", label: "768px" },
-          { value: "1024", label: "1024px" }
+          { value: "K_EULER_ANCESTRAL", label: "K_EULER_ANCESTRAL" },
+          { value: "DPMSolverMultistep", label: "DPMSolverMultistep" },
+          { value: "HeunDiscrete", label: "HeunDiscrete" },
+          { value: "KarrasDPM", label: "KarrasDPM" },
         ]
+
       },
-      height: {
-        name: "높이",
-        description: "출력 이미지의 높이를 픽셀 단위로 설정합니다.",
-        type: "select",
-        default: "768",
-        options: [
-          { value: "512", label: "512px" },
-          { value: "768", label: "768px" },
-          { value: "1024", label: "1024px" }
-        ]
-      }
-    }
+
+    },
+    recommendedSettings: `스텝 수: 40
+    CFG 스케일: 3.5
+    샘플러: DPM++ 2M SDE
+    권장 비율: 1:1 (정사각형)`
   },
+
   
   // 스타일 변환 모델
   {
@@ -151,10 +115,6 @@ export const IMAGE_MODELS: ImageModel[] = [
       faceImage: false
     },
     
-    features: {
-      quality: 'high',
-      speed: 'medium'
-    },
     
     configOptions: {
       styleStrength: {
@@ -181,7 +141,12 @@ export const IMAGE_MODELS: ImageModel[] = [
           { value: "watercolor", label: "수채화" }
         ]
       }
-    }
+    },
+    recommendedSettings: `스텝 수: 25
+    CFG 스케일: 7
+    샘플러: DPM++ 2M SDE
+    VAE: Euler a
+    권장 비율: 1:1 (정사각형)`
   },
   
   // 이미지 업스케일 모델
@@ -196,11 +161,6 @@ export const IMAGE_MODELS: ImageModel[] = [
     requiredImages: {
       sourceImage: true,
       faceImage: false
-    },
-    
-    features: {
-      quality: 'high',
-      speed: 'fast'
     },
     
     configOptions: {
@@ -227,26 +187,26 @@ export const IMAGE_MODELS: ImageModel[] = [
         type: "boolean",
         default: true
       }
-    }
+    },
+    recommendedSettings: `스텝 수: 25
+    CFG 스케일: 7
+    샘플러: DPM++ 2M SDE
+    VAE: Euler a
+    권장 비율: 1:1 (정사각형)`
   },
   
   // 배경 제거 모델
   {
-    id: "backgroundRemover",
-    name: "배경 제거",
-    description: "이미지에서 배경을 자동으로 제거하고 투명한 배경으로 변환합니다.",
+    id: "ip_adapter-sdxl-face",
+    name: "ip_adapter-sdxl (face swap)",
+    description: "업로드한 얼굴을 바탕으로 프롬프트를 이용하여 이미지를 생성합니다",
     apiModel: "model-lab/background-remover:39d862aaa594a6c2b96f9056f0065165a9307e97294548e44ace29a8be7139b4",
-    price: 0.008,
+    price: 0.025,
     
     // 배경 제거는 원본 이미지만 필요
     requiredImages: {
       sourceImage: true,
       faceImage: false
-    },
-    
-    features: {
-      quality: 'high',
-      speed: 'ultra'
     },
     
     configOptions: {
@@ -267,59 +227,13 @@ export const IMAGE_MODELS: ImageModel[] = [
         type: "boolean",
         default: false
       }
-    }
+    },
+    recommendedSettings: `스텝 수: 30
+    CFG 스케일: 0.6
+    샘플러: DPM++ 2M SDE
+    VAE: Euler a
+    권장 비율: 1:1 (정사각형)`
   },
-  
-  // 이미지 확장 모델
-  {
-    id: "imageExtender",
-    name: "이미지 확장",
-    description: "이미지 캔버스를 확장하여 더 넓은 배경이나 컨텍스트를 추가합니다.",
-    apiModel: "lstein/outpainting-v1:0fb4818cc9583bc5fb0bd931c8fc2446bc1b487a0a75b40a660c8a19d89fc031",
-    price: 0.02,
-    
-    // 이미지 확장은 원본 이미지만 필요
-    requiredImages: {
-      sourceImage: true,
-      faceImage: false
-    },
-    
-    features: {
-      quality: 'high',
-      speed: 'slow'
-    },
-    
-    configOptions: {
-      direction: {
-        name: "확장 방향",
-        description: "이미지를 확장할 방향을 선택합니다.",
-        type: "select",
-        default: "all",
-        options: [
-          { value: "all", label: "모든 방향" },
-          { value: "left", label: "왼쪽" },
-          { value: "right", label: "오른쪽" },
-          { value: "top", label: "위" },
-          { value: "bottom", label: "아래" }
-        ]
-      },
-      expansionRatio: {
-        name: "확장 비율",
-        description: "원본 이미지 대비 확장 비율을 설정합니다.",
-        type: "number",
-        default: 0.5,
-        min: 0.1,
-        max: 1.0,
-        step: 0.1
-      },
-      seamlessBlending: {
-        name: "매끄러운 블렌딩",
-        description: "확장 부분이 원본과 자연스럽게 블렌딩되도록 합니다.",
-        type: "boolean",
-        default: true
-      }
-    }
-  }
 ];
 
 // 토큰 환율 설정 

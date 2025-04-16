@@ -37,6 +37,14 @@ export interface AIModel {
     };
   };
   
+  // 모델이 지원하는 VAE 목록
+  supportedVaes?: {
+    id: string;
+    name: string;
+    description?: string;
+    isDefault?: boolean;
+  }[];
+  
   // 모델별 권장 설정
   recommendedSettings: string;
 }
@@ -153,7 +161,6 @@ CFG 스케일: 7.5
 VAE: default
 권장 비율: 1:1 (정사각형) 또는 3:4 (세로)`
   },
-  
   {
     id: "pony-nai3",
     name: "Pony NAI3",
@@ -207,8 +214,128 @@ CFG 스케일: 8
 샘플러: Euler a
 권장 비율: 3:4 (세로)`
   },
+  {
+    id: "uwazumimix-v3.5",
+    name: "uwazumimix-v3.5",
+    description: "pony 계열. 약간 일본스러움이 있음",
+    vae: "default",
+    category: "2D",
+    apiModel: "aisha-ai-official/uwazumimix-v3.5:dbf8dd5a4c40f9d91ba1813ed4dd384f398aa649a9c69683b5fa13b06a274626",
+    price: "0.01",
+    
+    modelTags: {
+      base: 'PONY',
+      style: ['애니메이션', '사실적'],
+      nsfwSupport: true
+    },
+    
+    configOptions: {
+      steps: {
+        name: "스텝 수",
+        description: "생성 단계 수입니다. 높을수록 품질이 향상되지만 생성 시간이 길어집니다.",
+        type: "number",
+        default: 40,
+        min: 10,
+        max: 100,
+        step: 1
+      },
+      cfgScale: {
+        name: "CFG 스케일",
+        description: "프롬프트 충실도입니다. 값이 높을수록 프롬프트와 유사한 이미지가 생성됩니다.",
+        type: "number",
+        default: 5,
+        min: 1,
+        max: 20,
+        step: 0.5
+      },
+      sampler: {
+        name: "샘플러",
+        description: "이미지 생성에 사용할 샘플링 방법입니다.",
+        type: "select",
+        default: "DPM++ 2M SDE Karras",
+        options: [
+          { value: "DPM++ 2M SDE", label: "DPM++ 2M SDE" },
+          { value: "DPM++ 2M Karras", label: "DPM++ 2M Karras" },
+          { value: "Euler", label: "Euler" },
+          { value: "Euler a", label: "Euler a" }
+        ]
+      },
+      vae: {
+        name: "VAE",
+        description: "VAE 모델을 선택합니다.",
+        type: "select",
+        default: "NeptuniaXL-VAE-ContrastSaturation",
+        options: [
+          { value: "default", label: "default" },
+          { value: "Liquid111", label: "Liquid111" },
+          { value: "NeptuniaXL-VAE-ContrastSaturation", label: "NeptuniaXL-VAE-ContrastSaturation" },
+          { value: "UwazumiMix-v3.5", label: "UwazumiMix-v3.5" },
+        ]
+      }
+    },
+    
+    recommendedSettings: `스텝 수: 60
+CFG 스케일: 5
+샘플러: NeptuniaXL-VAE-ContrastSaturation
+(Prompt: "score_9, score_8_up, score_7_up,"
+Negative prompt: "score_4, score_5, score_6, source_pony, source_furry, blur, disfigurement, distortion, grainy, low quality, abstract, mutations,bad quality,worst quality,worst detail,sketch,censor,patreon,watermark,username,artistic error,bad hands, six fingers, extra fingers,")
+`
+  },
   
   // Flux 모델 그룹
+  {
+    id: "flux.1schnell-uncensored-rasch3v",
+    name: "flux.1schnell-uncensored-rasch3",
+    description: "",
+    vae: "default",
+    category: "All",
+    apiModel: "aisha-ai-official/flux.1schnell-uncensored-rasch3:7223ac95cada3c30951ad83ab63d09794c3f038ca69d5a644087510c07440e29",
+    price: "0.0053",
+    
+    modelTags: {
+      base: 'Flux',
+      style: ['사실적', '애니메이션'],
+      nsfwSupport: true
+    },
+    
+    configOptions: {
+      steps: {
+        name: "스텝 수",
+        description: "생성 단계 수입니다",
+        type: "number",
+        default: 20,
+        min: 4,
+        max: 50,
+        step: 1
+      },
+      cfgScale: {
+        name: "CFG 스케일",
+        description: "값이 높을수록 프롬프트와 유사한 이미지가 생성됩니다.",
+        type: "number",
+        default: 5,
+        min: 1,
+        max: 20,
+        step: 0.5
+      },
+      sampler: {
+        name: "샘플러",
+        description: "이미지 생성에 사용할 샘플링 방법입니다.",
+        type: "select",
+        default: "Euler flux beta",
+        options: [
+          { value: "Euler flux beta", label: "Euler flux beta" },
+          { value: "Euler flux simple", label: "Euler flux simple" },
+          { value: "Euler flux exponential", label: "Euler flux exponential" },
+        ]
+      }
+    },
+    
+    recommendedSettings: `스텝 수: 30
+CFG 스케일: 3.5
+샘플러: Default
+참고: 최고 품질의 Flux 모델, NSFW 내용은 생성 불가
+`
+  },
   {
     id: "Realistic Vision 5.1",
     name: "Realistic Vision 5.1",
@@ -272,7 +399,7 @@ VAE : 지원안함.
     vae: "default",
     category: "All",
     apiModel: "black-forest-labs/flux-schnell",
-    price: "가격 문의 필요",
+    price: "0.003",
     
     modelTags: {
       base: 'Flux',
@@ -376,7 +503,7 @@ CFG 스케일: 9
     vae: "default",
     category: "All",
     apiModel: "aisha-ai-official/nsfw-flux-dev:fb4f086702d6a301ca32c170d926239324a7b7b2f0afc3d232a9c4be382dc3fa",
-    price: "0.0057",
+    price: "0.0053",
     
     modelTags: {
       base: 'Flux',
@@ -398,9 +525,9 @@ CFG 스케일: 9
         name: "CFG 스케일",
         description: "값이 높을수록 프롬프트와 유사한 이미지가 생성됩니다.",
         type: "number",
-        default: 9,
+        default: 3.5,
         min: 1,
-        max: 30,
+        max: 12,
         step: 0.5
       },
       sampler: {
@@ -415,64 +542,10 @@ CFG 스케일: 9
     },
     
     recommendedSettings: `스텝 수: 30
-CFG 스케일: 9
+CFG 스케일: 3.5
 샘플러: Default
 참고: 최고 품질의 Flux 모델, NSFW 내용은 생성 불가
-price: 0.0057
 `
-  },
-  
-  {
-    id: "realism-xl",
-    name: "realism-xl",
-    description: "cfg 스케일을 늘릴수록 2D가 됨. 3.5 일 때 실사와 비슷함.",
-    vae: "default",
-    category: "All",
-    apiModel: "asiryan/realism-xl:ff26a1f71bc27f43de016f109135183e0e4902d7cdabbcbb177f4f8817112219",
-    price: "0.0033",
-    modelTags: {
-      base: 'PONY',
-      style: ['사실적'],
-      nsfwSupport: true
-    },
-    
-    configOptions: {
-      steps: {
-        name: "스텝 수",
-        description: "높일수록 만드는 시간이 오래걸리지만 좀 더 세밀하게 그려냅니다.",
-        type: "number",
-        default: 28,
-        min: 1,
-        max: 50,
-        step: 1
-      },
-      cfgScale: {
-        name: "CFG 스케일",
-        description: "값이 높을수록 프롬프트와 유사한 이미지가 생성됩니다.",
-        type: "number",
-        default: 3.5,
-        min: 1,
-        max: 20,
-        step: 0.5
-      },
-      sampler: {
-        name: "샘플러",
-        description: "이미지 생성에 사용할 샘플링 방법입니다.",
-        type: "select",
-        default: "K_EULER_ANCESTRAL",
-        options: [
-          { value: "K_EULER_ANCESTRAL", label: "K_EULER_ANCESTRAL" },
-          { value: "K_EULER", label: "K_EULER" },
-          { value: "KarrasDPM", label: "KarrasDPM" },
-          { value: "DPMSolverMultistep", label: "DPMSolverMultistep" }
-        ]
-      }
-    },
-    
-    recommendedSettings: `스텝 수: 30
-CFG 스케일: 14
-샘플러: K_EULER_ANCESTRAL
-참고: 최고 품질의 Flux 모델, NSFW 내용은 생성 불가`
   },
     {
     id: "Realism-IL-v3",
@@ -532,6 +605,140 @@ VAE: Euler a
 부정프롬프트 : Stable_Yogis_Illustrious_Negatives-neg, 
 `
   },
+  {
+    id: "projectil-v3",
+    name: "projectil-v3",
+    description: "프롬프트가 잘 적용됨,선명함",
+    vae: "default",
+    category: "realistic",
+    apiModel: "aisha-ai-official/projectil-v3:55ca649276a564dda172aed3cdcde0221bb922ef64bdd1ce5e9adaf001658181",
+    price: "0.0052",
+    
+    modelTags: {
+      base: 'PONY',
+      style: ['애니메이션', '사실적'],
+      nsfwSupport: true
+    },
+    
+    configOptions: {
+      steps: {
+        name: "스텝 수",
+        description: "생성 단계 수입니다. 높을수록 품질이 향상되지만 생성 시간이 길어집니다.",
+        type: "number",
+        default: 30,
+        min: 20,
+        max: 50,
+        step: 1
+      },
+      cfgScale: {
+        name: "CFG 스케일",
+        description: "프롬프트 충실도입니다. 값이 높을수록 프롬프트와 유사한 이미지가 생성됩니다.",
+        type: "number",
+        default: 5,
+        min: 1,
+        max: 20,
+        step: 0.5
+      },
+      sampler: {
+        name: "샘플러",
+        description: "이미지 생성에 사용할 샘플링 방법입니다.",
+        type: "select",
+        default: "DPM++ 2M SDE Karras",
+        options: [
+          { value: "DPM++ 2M SDE", label: "DPM++ 2M SDE" },
+          { value: "DPM++ 2M Karras", label: "DPM++ 2M Karras" },
+          { value: "Euler", label: "Euler" },
+          { value: "Euler a", label: "Euler a" }
+        ]
+      },
+      vae: {
+        name: "VAE",
+        description: "VAE 모델을 선택합니다.",
+        type: "select",
+        default: "Liquid111",
+        options: [
+          { value: "Liquid111", label: "Liquid111" },
+          { value: "NeptuniaXL-VAE-ContrastSaturation", label: "NeptuniaXL" },
+          { value: "ProjectIL-v3", label: "ProjectIL-v3" }
+        ]
+      }
+    },
+
+    supportedVaes: [
+      {
+        id: "Liquid111",
+        name: "Liquid111",
+        isDefault: true
+      },
+      {
+        id: "NeptuniaXL-VAE-ContrastSaturation",
+        name: "NeptuniaXL",
+      },
+      {
+        id: "ProjectIL-v3",
+        name: "ProjectIL-v3",
+      }
+    ],
+    
+    recommendedSettings: `스텝 수: 30
+CFG 스케일: 5
+샘플러: Liauid111
+scheduler: DPM++ 2M SDE Karras
+권장 비율: 1024:1024`
+  },
+  {
+    id: "realism-xl",
+    name: "realism-xl",
+    description: "pony 기반 realism 모델",
+    vae: "default",
+    category: "All",
+    apiModel: "asiryan/realism-xl:ff26a1f71bc27f43de016f109135183e0e4902d7cdabbcbb177f4f8817112219",
+    price: "0.0078",
+    
+    modelTags: {
+      base: 'PONY',
+      style: ['사실적', '애니메이션'],
+      nsfwSupport: true
+    },
+    
+    configOptions: {
+      steps: {
+        name: "스텝 수",
+        description: "생성 단계 수입니다. Flux Schnell은 최대 4 스텝만 지원하며, 적은 스텝으로도 빠르게 결과를 생성합니다.",
+        type: "number",
+        default: 40,
+        min: 1,
+        max: 100,
+        step: 1
+      },
+      cfgScale: {
+        name: "CFG 스케일",
+        description: "프롬프트 충실도입니다. 값이 높을수록 프롬프트와 유사한 이미지가 생성됩니다.",
+        type: "number",
+        default: 3.5,
+        min: 1,
+        max: 50,
+        step: 0.5
+      },
+      sampler: {
+        name: "샘플러",
+        description: "이미지 생성에 사용할 샘플링 방법입니다.",
+        type: "select",
+        default: "Default",
+        options: [
+          { value: "Default", label: "Default Flux" }
+        ]
+      }
+    },
+    
+    recommendedSettings: `스텝 수: 4
+CFG 스케일: 7
+샘플러: Default
+권장 비율: 1:1 (정사각형)
+추천 프롬프트 : score_10,score_9_up, score_8_up, (Western Comics), girl, cute, gothic, seductive, innocent, pale skin, long straight black hair, zoom view
+부정 프롬프트 : score_6, score_5, score_4, 
+`
+  }
 ];
 
 // 중복 모델 ID 검사

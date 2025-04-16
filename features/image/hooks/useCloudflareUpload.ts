@@ -14,14 +14,14 @@ export function useCloudflareUpload() {
   
   /**
    * 임시 이미지 URL을 Cloudflare에 영구 저장합니다.
-   * @param imageUrl 업로드할 이미지 URL
-   * @param imageId 이미지 ID (선택적)
+   * @param image 이미지 URL 또는 Base64 이미지
+   * @param filename 파일 이름
    * @param width 이미지 너비 (선택적)
    * @param height 이미지 높이 (선택적)
    */
   const uploadToPermanentStorage = async (
-    imageUrl: string, 
-    imageId?: string,
+    image: string, // URL 또는 Base64 이미지
+    filename: string,
     width?: number,
     height?: number
   ): Promise<CloudflareUploadResult> => {
@@ -29,54 +29,74 @@ export function useCloudflareUpload() {
     setError(null);
     
     try {
-      // URL 유효성 검사 강화
-      if (!imageUrl || imageUrl === "pending" || imageUrl === "null") {
-        console.warn("[Cloudflare] 유효하지 않은 이미지 URL:", imageUrl);
+      // Base64 이미지인 경우
+      if (image.startsWith('data:image')) {
+        console.log("[Cloudflare] Base64 이미지 업로드 시작");
+        
+        // Base64를 Blob으로 변환
+        const base64Data = image.split(',')[1];
+        const byteCharacters = atob(base64Data);
+        const byteArrays = [];
+        
+        for (let i = 0; i < byteCharacters.length; i++) {
+          byteArrays.push(byteCharacters.charCodeAt(i));
+        }
+        
+        const blob = new Blob([new Uint8Array(byteArrays)], { type: 'image/png' });
+        const file = new File([blob], filename, { type: 'image/png' });
+        
+        // FormData 생성
+        const formData = new FormData();
+        formData.append('file', file);
+        if (width) formData.append('width', width.toString());
+        if (height) formData.append('height', height.toString());
+        
+        const response = await fetch('/api/image/cloudflare-upload', {
+          method: 'POST',
+          body: formData,
+        });
+        
+        const data = await response.json();
+        
+        if (!response.ok) {
+          throw new Error(data.error || '이미지 업로드 중 오류가 발생했습니다');
+        }
+        
+        return {
+          success: true,
+          url: data.url,
+          thumbnailUrl: data.thumbnailUrl || null,
+          id: data.id || null,
+          variants: data.variants || null,
+          error: null
+        };
+      }
+      
+      // URL 이미지인 경우
+      if (!image || image === "pending" || image === "null") {
         throw new UserFacingError('유효한 이미지 URL이 아닙니다');
       }
       
-      // URL 형식 확인 (http 또는 https로 시작하는지)
-      if (!imageUrl.startsWith('http')) {
-        console.warn("[Cloudflare] URL 형식이 아닌 값:", imageUrl);
+      if (!image.startsWith('http')) {
         throw new UserFacingError('올바른 이미지 URL 형식이 아닙니다');
       }
       
-      console.log("[Cloudflare] 영구 저장소 업로드 시작", {
-        imageUrl: imageUrl.substring(0, 30) + "...",
-        imageId,
-        size: width && height ? `${width}x${height}` : "알 수 없음"
-      });
-      
-      const response = await fetch('/features/image/api/cloudflare-upload', {
+      const response = await fetch('/api/image/cloudflare-upload', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          imageUrl,
-          imageId: imageId || `image-${Date.now()}`,
+          imageUrl: image,
           width,
           height
         }),
       });
       
-      console.log("[Cloudflare] API 응답 상태:", response.status);
-      
       const data = await response.json();
       
       if (!response.ok) {
-        console.error("[Cloudflare] 업로드 실패:", data.error || "알 수 없는 오류");
         throw new Error(data.error || '이미지 업로드 중 오류가 발생했습니다');
-      }
-      
-      console.log("[Cloudflare] 업로드 성공:", {
-        id: data.id?.substring(0, 8) || "없음",
-        hasUrl: !!data.url,
-        hasThumbnail: !!data.thumbnailUrl
-      });
-      
-      if (!data.url) {
-        throw new Error('Cloudflare에서 이미지 URL을 반환하지 않았습니다');
       }
       
       return {
@@ -139,7 +159,7 @@ export function useCloudflareUpload() {
       if (width) formData.append('width', width.toString());
       if (height) formData.append('height', height.toString());
       
-      const response = await fetch('/features/image/api/cloudflare-upload', {
+      const response = await fetch('/api/image/cloudflare-upload', {
         method: 'POST',
         body: formData,
       });

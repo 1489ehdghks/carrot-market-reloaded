@@ -20,6 +20,7 @@ interface ImageUploadHook {
   clearImage: () => void;
   compressImage: (file: File) => Promise<File>;
   uploadImageToServer: (path: string) => Promise<string>;
+  uploadToCloudflare: (file: File, id: string, width: number, height: number) => Promise<{ success: boolean; url?: string; error?: string }>;
 }
 
 export function useImageUpload(options?: UploadOptions): ImageUploadHook {
@@ -77,9 +78,16 @@ export function useImageUpload(options?: UploadOptions): ImageUploadHook {
         URL.revokeObjectURL(previewUrl);
       }
       
+      // 이미지 파일과 미리보기 URL 설정
       setImageFile(processedFile);
       setPreviewUrl(newPreviewUrl);
       setError(null);
+      
+      console.log("이미지 파일 설정 완료:", {
+        name: processedFile.name,
+        size: processedFile.size,
+        type: processedFile.type
+      });
       
     } catch (err: any) {
       const errorMsg = `이미지 처리 중 오류: ${err.message || '알 수 없는 오류'}`;
@@ -213,6 +221,48 @@ export function useImageUpload(options?: UploadOptions): ImageUploadHook {
     }
   };
   
+  // Cloudflare 업로드 함수 추가
+  const uploadToCloudflare = async (
+    file: File,
+    id: string,
+    width: number,
+    height: number
+  ): Promise<{ success: boolean; url?: string; error?: string }> => {
+    try {
+      setIsUploading(true);
+      setError(null);
+
+      // 이미지 압축
+      const compressedFile = await compressImage(file);
+
+      // FormData 생성
+      const formData = new FormData();
+      formData.append('file', compressedFile);
+      formData.append('id', id);
+      formData.append('width', width.toString());
+      formData.append('height', height.toString());
+
+      // Cloudflare 업로드 API 호출
+      const response = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error('Cloudflare 업로드 실패');
+      }
+
+      const data = await response.json();
+      return { success: true, url: data.url };
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : '알 수 없는 오류가 발생했습니다';
+      setError(errorMessage);
+      return { success: false, error: errorMessage };
+    } finally {
+      setIsUploading(false);
+    }
+  };
+  
   return {
     imageFile,
     previewUrl,
@@ -222,6 +272,7 @@ export function useImageUpload(options?: UploadOptions): ImageUploadHook {
     handleImageDrop,
     clearImage,
     compressImage,
-    uploadImageToServer
+    uploadImageToServer,
+    uploadToCloudflare,
   };
 } 

@@ -79,7 +79,7 @@ export function ImageSelectModal({ isOpen, onClose, imageId, imageUrl }: ImageSe
     <CustomDialog open={isOpen} onOpenChange={onClose}>
       <CustomDialogContent className="w-[95vw] max-w-4xl max-h-[90vh] overflow-y-auto p-0 md:p-6">
         <CustomDialogHeader className="p-4 md:p-4">
-            <CustomDialogTitle className="text-xl font-semibold">{imageData?.title} || ''</CustomDialogTitle>
+            <CustomDialogTitle className="text-xl font-semibold">{imageData?.title}</CustomDialogTitle>
         </CustomDialogHeader>
         
         <div className="space-y-4 p-4 md:p-0">

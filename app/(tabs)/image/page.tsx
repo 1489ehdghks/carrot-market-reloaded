@@ -381,11 +381,7 @@ export default function ImagePage() {
             <TabsContent value="image-to-image">
               <CustomCard>
                 <CustomCardContent className="pt-6">
-                  <ImageUploader 
-                    onImageUploaded={(file, preview) => console.log('업로드된 이미지:', file, preview)} 
-                  />
-                  <div className="h-4"></div>
-                  <TextToImageForm 
+                  <ImageToImageForm 
                     onGenerationStart={() => {}} 
                     onGenerationComplete={handleImageGenerated} 
                     onError={handleError} 

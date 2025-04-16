@@ -44,7 +44,6 @@ declare module "../../lib/imageService" {
     additionalParams?: string;
   }
 
-  export function generateImageWithText(params: ImageGenerationParams): Promise<ImageGenerationResult>;
   export function generateImageWithImage(prompt: string, imageUrl: string, strength?: number, width?: number, height?: number): Promise<ImageGenerationResult>;
   export function scheduleCloudflareUpload(imageId: number, originalUrl: string): Promise<any>;
   export function getImageUploadUrl(): Promise<any>;

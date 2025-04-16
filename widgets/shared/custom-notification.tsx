@@ -89,16 +89,22 @@ export const Notification = ({
     };
   }, [duration, onClose]);
 
-  const handleClose = () => {
-    // 즉시 알림 닫기 (애니메이션 없음)
+  const handleClose = (e: React.MouseEvent) => {
+    // 이벤트 버블링 방지
+    e.stopPropagation();
+    e.preventDefault();
+    
+    // 즉시 알림 닫기
     setIsVisible(false);
+    
+    // 즉시 콜백 호출
     if (onClose) {
       onClose();
     }
   };
 
   return (
-    <AnimatePresence>
+    <AnimatePresence mode="wait">
       {isVisible && (
         <>
           {/* 배경 오버레이 (center 위치일 때만) */}
@@ -107,8 +113,7 @@ export const Notification = ({
               className="fixed inset-0 bg-black z-50"
               initial={{ opacity: 0 }}
               animate={{ opacity: 0.5 }}
-              // exit 애니메이션 제거
-              exit={{ opacity: 0, transition: { duration: 0 } }}
+              exit={{ opacity: 0 }}
             />
           )}
           
@@ -122,12 +127,12 @@ export const Notification = ({
             )}
             style={{
               maxWidth: position.includes('center') ? '90%' : '24rem', // max-w-md 대체
-              margin: '0 auto'
+              margin: '0 auto',
+              pointerEvents: 'auto' // 모든 포인터 이벤트 허용
             }}
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
-            // exit 애니메이션 제거
-            exit={{ opacity: 0, transition: { duration: 0 } }}
+            exit={{ opacity: 0, transition: { duration: 0.1 } }}
           >
             <div 
               className={cn(
@@ -152,7 +157,8 @@ export const Notification = ({
               </div>
               <button 
                 onClick={handleClose}
-                className="flex-shrink-0 ml-2 sm:ml-3 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                className="flex-shrink-0 ml-2 sm:ml-3 p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors cursor-pointer"
+                aria-label="닫기"
               >
                 <X size={18} />
               </button>

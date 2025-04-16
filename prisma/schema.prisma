@@ -93,8 +93,8 @@ model AIImage {
   price          Float?
   category       String
   tags           String?
-  fileUrl        String         @db.Text
-  thumbnailUrl   String         @db.Text
+  fileUrl        String         @db.LongText
+  thumbnailUrl   String         @db.LongText
   width          Int
   height         Int
   format         String

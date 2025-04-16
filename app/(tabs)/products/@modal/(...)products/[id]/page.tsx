@@ -46,7 +46,7 @@ export default async function Page({ params }: PageProps) {
                             <div className="relative aspect-square bg-neutral-100 dark:bg-neutral-800">
                                 {product.thumbnailUrl ? (
                                     <Image 
-                                        src={`${product.thumbnailUrl}/public`}
+                                        src={`${product.thumbnailUrl}/normal`}
                                         alt={product.title}
                                         fill
                                         priority

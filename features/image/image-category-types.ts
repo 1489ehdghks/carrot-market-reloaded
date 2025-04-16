@@ -64,4 +64,70 @@ export function getAllCategoryGroups(): {
     group: group as ImageCategoryGroup,
     categories: getCategoriesByGroup(group as ImageCategoryGroup)
   }));
+}
+
+// 이미지 생성 상태 타입
+export type ImageGenerationStatus = 
+  | 'pending' 
+  | 'processing' 
+  | 'completed' 
+  | 'failed';
+
+// 이미지 생성 설정 타입
+export interface ImageGenerationSettings {
+  prompt: string;
+  negativePrompt?: string;
+  width: number;
+  height: number;
+  num_inference_steps: number;
+  guidance_scale: number;
+  scheduler: string;
+  strength?: number;
+  model: string;
+}
+
+// 이미지 생성 결과 타입
+export interface ImageGenerationResult {
+  success: boolean;
+  id?: number;
+  imageUrl?: string;
+  error?: string;
+  status?: ImageGenerationStatus;
+}
+
+// 이미지 생성 요청 타입
+export interface ImageGenerationRequest {
+  prompt: string;
+  image: string | File; // base64 또는 File 객체
+  negativePrompt?: string;
+  width?: number;
+  height?: number;
+  num_inference_steps?: number;
+  guidance_scale?: number;
+  scheduler?: string;
+  strength?: number;
+  model?: string;
+}
+
+// 이미지-이미지 생성 파라미터
+export interface ImageToImageGenerationParams {
+  image: File | string;
+  prompt: string;
+  negativePrompt?: string;
+  width?: number;
+  height?: number;
+  num_inference_steps?: number;
+  guidance_scale?: number;
+  scheduler?: string;
+  strength?: number;
+  model?: string;
+  userId: number;
+}
+
+// 이미지-이미지 생성 결과
+export interface ImageToImageGenerationResult {
+  success: boolean;
+  id?: number;
+  imageUrl: string;
+  error?: string;
 } 

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { handleGlobalError, UserFacingError } from "../../../../shared/lib/error-handling";
 import { getImageSession } from '@/features/image/process/imageSessionService';
 import { uploadImageFromUrl } from "@/shared/lib/cloudflare";
+import { db } from '@/shared/lib/db';
 
 /**
  * 임시 이미지 URL을 Cloudflare Images에 업로드하고 영구 URL을 반환하는 API 엔드포인트
@@ -32,12 +33,23 @@ export async function POST(request: NextRequest) {
 
     // 요청 본문 파싱
     const body = await request.json();
-    const { imageUrl, imageId = `img-${Date.now()}` } = body;
+    const { imageUrl, imageId: rawImageId = `img-${Date.now()}` } = body;
     const { width, height } = body;
     
-    console.log("Cloudflare 업로드 요청:", {
+    // imageId를 숫자로 변환 (문자열이 전달된 경우에 대비)
+    let imageId: number;
+    if (typeof rawImageId === 'number') {
+      imageId = rawImageId;
+    } else if (typeof rawImageId === 'string' && !isNaN(parseInt(rawImageId))) {
+      imageId = parseInt(rawImageId);
+    } else {
+      imageId = Date.now(); // 유효하지 않은 ID인 경우 타임스탬프 사용
+    }
+
+    console.log("[Cloudflare 업로드] 요청 수신:", {
       userId,
       imageId,
+      rawImageId,
       width, 
       height,
       hasImageUrl: !!imageUrl,
@@ -56,15 +68,32 @@ export async function POST(request: NextRequest) {
     const uploadResult = await uploadImageFromUrl(imageUrl, width, height);
     
     if (!uploadResult.success || !uploadResult.url) {
-      console.error("이미지 업로드 실패:", uploadResult.error);
+      console.error("[Cloudflare 업로드] 실패:", uploadResult.error);
       throw new Error(uploadResult.error || "이미지 업로드에 실패했습니다");
     }
     
-    console.log("이미지 업로드 성공:", {
+    console.log("[Cloudflare 업로드] 성공:", {
       id: uploadResult.id,
       url: uploadResult.url?.substring(0, 50) + "...",
       thumbnailUrl: uploadResult.thumbnailUrl?.substring(0, 50) + "..."
     });
+    
+    // 이미지 ID로 DB 레코드 업데이트 (기존 레코드 확인 없이 바로 진행)
+    try {
+      const updatedImage = await db.aIImage.update({
+        where: { id: imageId },
+        data: {
+          fileUrl: uploadResult.url,
+          thumbnailUrl: uploadResult.thumbnailUrl || uploadResult.url,
+          isPermanent: true
+        }
+      });
+      
+      console.log(`[Cloudflare 업로드] DB 업데이트 완료: ID=${imageId}`);
+    } catch (dbError) {
+      console.error('[Cloudflare 업로드] DB 업데이트 오류:', dbError);
+      // DB 업데이트 실패해도 업로드 자체는 성공했으므로 성공 응답 반환
+    }
     
     // 성공 응답 반환
     return NextResponse.json({
@@ -73,10 +102,14 @@ export async function POST(request: NextRequest) {
       thumbnailUrl: uploadResult.thumbnailUrl,
       id: uploadResult.id,
       variants: uploadResult.variants
+    }, {
+      headers: {
+        'Content-Type': 'application/json'
+      }
     });
     
   } catch (error: any) {
-    console.error("URL 업로드 중 오류:", error);
+    console.error("[Cloudflare 업로드] 처리 오류:", error);
     
     // 전역 에러 핸들러에 에러 전달
     handleGlobalError(error);
@@ -87,7 +120,12 @@ export async function POST(request: NextRequest) {
         success: false, 
         error: error instanceof Error ? error.message : "이미지 업로드 중 오류가 발생했습니다" 
       },
-      { status: 500 }
+      { 
+        status: 500,
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      }
     );
   }
 } 

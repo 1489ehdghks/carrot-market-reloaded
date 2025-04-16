@@ -36,7 +36,7 @@ export default function EditProduct({ params }: EditProductProps) {
         setValue("price", product.price);
         setValue("description", product.description);
         setValue("photo", product.photo);
-        setPreview(`${product.photo}/public`);
+        setPreview(`${product.photo}/normal`);
       }
     };
     loadProduct();

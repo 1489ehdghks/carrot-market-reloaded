@@ -378,4 +378,84 @@ export async function uploadImageFromUrl(
       error: error.message || '이미지 업로드 중 오류가 발생했습니다'
     };
   }
+}
+
+export async function uploadToPermanentStorage(
+  image: string, // Base64 이미지
+  filename: string,
+  width: number,
+  height: number
+): Promise<{ success: boolean; url?: string; error?: string }> {
+  try {
+    // Base64 이미지를 Blob으로 변환
+    const base64Data = image.split(',')[1];
+    const byteCharacters = atob(base64Data);
+    const byteArrays = [];
+    
+    for (let i = 0; i < byteCharacters.length; i++) {
+      byteArrays.push(byteCharacters.charCodeAt(i));
+    }
+    
+    const blob = new Blob([new Uint8Array(byteArrays)], { type: 'image/jpeg' });
+    
+    // FormData 생성
+    const formData = new FormData();
+    formData.append('file', blob, filename);
+    formData.append('width', width.toString());
+    formData.append('height', height.toString());
+
+    // Cloudflare에 업로드
+    const response = await fetch('/api/upload', {
+      method: 'POST',
+      body: formData,
+    });
+
+    if (!response.ok) {
+      throw new Error('이미지 업로드 실패');
+    }
+
+    const data = await response.json();
+    return { success: true, url: data.url };
+  } catch (error) {
+    console.error('이미지 업로드 중 오류 발생:', error);
+    return { success: false, error: error instanceof Error ? error.message : '알 수 없는 오류' };
+  }
+}
+
+interface UploadToCloudflareParams {
+  imageUrl?: string | null;
+  file?: File | null;
+  width?: number;
+  height?: number;
+  userId: string;
+}
+
+export async function uploadToCloudflare({
+  imageUrl,
+  file,
+  width,
+  height,
+  userId
+}: UploadToCloudflareParams): Promise<CloudflareUploadResult> {
+  try {
+    if (file) {
+      // File 객체 처리
+      return await uploadLocalFile(file, width, height);
+    } else if (imageUrl) {
+      // URL 이미지 처리
+      return await uploadImageFromUrl(imageUrl, width, height);
+    } else {
+      throw new Error('이미지가 제공되지 않았습니다');
+    }
+  } catch (error) {
+    console.error('Cloudflare 업로드 오류:', error);
+    return {
+      success: false,
+      url: null,
+      thumbnailUrl: null,
+      id: null,
+      variants: null,
+      error: error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다'
+    };
+  }
 } 

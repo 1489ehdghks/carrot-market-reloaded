@@ -1,18 +1,20 @@
 "use server";
 import {
   generateImageWithText as genImageWithText,
-  // generateImageWithImage as genImageWithImage,
   scheduleCloudflareUpload as scheduleUpload,
   getImageUploadUrl as getUploadUrl,
   saveGeneratedImage as saveImage,
   publishImage as publish,
   type ImageGenerationParams,
-  type ImageGenerationResult
+  type ImageGenerationResult,
+  generateImageWithImage as serviceImageWithImage
 } from "@/features/image/process/imageService";
 import { db } from '@/shared/lib/db';
 import getSession from "@/shared/lib/session";
 import { revalidatePath } from 'next/cache';
 import { ImageCategory } from '@/features/image/image-category-types';
+import { getImageModelById } from '@/shared/models/image/imageModels';
+
 
 /**
  * 최적화된 이미지 생성 함수
@@ -83,17 +85,6 @@ export async function generateImage(params: {
   }
 }
 
-// Text2Image 함수 - 외부로 노출할 서버 액션
-/**
- * 텍스트를 기반으로 이미지를 생성합니다.
- * 
- * @param {ImageGenerationParams} params - 이미지 생성 매개변수
- * @returns {Promise<ImageGenerationResult>} 생성된 이미지 결과
- */
-export async function generateImageWithText(params: ImageGenerationParams): Promise<ImageGenerationResult> {
-  return await genImageWithText(params);
-}
-
 // Image2Image 함수 - 외부로 노출할 서버 액션
 /**
  * 기존 이미지를 기반으로 새 이미지를 생성합니다.
@@ -105,15 +96,101 @@ export async function generateImageWithText(params: ImageGenerationParams): Prom
  * @param {number} [height] - 이미지 높이
  * @returns {Promise<ImageGenerationResult>} 생성된 이미지 결과
  */
-// export async function generateImageWithImage(
-//   prompt: string, 
-//   imageUrl: string, 
-//   strength?: number,
-//   width?: number,
-//   height?: number
-// ): Promise<ImageGenerationResult> {
-//   return await genImageWithImage(prompt, imageUrl, strength, width, height);
-// }
+export async function generateImageWithImage(
+  prompt: string, 
+  imageUrl: string | File, 
+  strength?: number,
+  width?: number,
+  height?: number,
+  num_inference_steps?: number,
+  guidance_scale?: number,
+  scheduler?: string
+): Promise<ImageGenerationResult> {
+  try {
+    const session = await getSession();
+    if (!session?.id) {
+      return { success: false, error: '로그인이 필요합니다.', imageUrl: '' };
+    }
+
+    // 이미지를 base64로 변환
+    let base64Image: string;
+    if (imageUrl instanceof File) {
+      // File 객체인 경우
+      base64Image = await new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.readAsDataURL(imageUrl);
+      });
+    } else if (imageUrl.startsWith('data:')) {
+      // 이미 base64인 경우
+      base64Image = imageUrl;
+    } else if (imageUrl.startsWith('blob:')) {
+      // Blob URL인 경우
+      const response = await fetch(imageUrl);
+      const blob = await response.blob();
+      base64Image = await new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.readAsDataURL(blob);
+      });
+    } else {
+      // 일반 URL인 경우
+      const response = await fetch(imageUrl);
+      const blob = await response.blob();
+      base64Image = await new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.readAsDataURL(blob);
+      });
+    }
+
+    // API 요청 파라미터 설정
+    const params = {
+      prompt,
+      image: base64Image,
+      num_inference_steps: num_inference_steps,
+      guidance_scale: guidance_scale,
+      scheduler: scheduler,
+      strength: strength,
+      width: width,
+      height: height
+    };
+
+    // API 호출
+    const response = await fetch('https://api.replicate.com/v1/predictions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Token ${process.env.REPLICATE_API_TOKEN}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        version: "asiryan/realism-xl:ff26a1f71bc27f43de016f109135183e0e4902d7cdabbcbb177f4f8817112219",
+        input: params
+      })
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      return { success: false, error: error.detail || '이미지 생성에 실패했습니다.', imageUrl: '' };
+    }
+
+    const prediction = await response.json();
+    
+    // 결과 이미지 URL 반환
+    return {
+      success: true,
+      imageUrl: prediction.output[0],
+      id: prediction.id
+    };
+  } catch (error) {
+    console.error('이미지 생성 오류:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다.',
+      imageUrl: ''
+    };
+  }
+}
 
 // Cloudflare 업로드 스케줄링 - 외부로 노출할 서버 액션
 /**
@@ -230,7 +307,9 @@ export async function generateImageAction({
   cfgScale,
   sampler,
   vae,
-  negativePrompt
+  negativePrompt,
+  sourceImage,
+  faceImage
 }: {
   prompt: string;
   modelId: string;
@@ -241,6 +320,8 @@ export async function generateImageAction({
   sampler: string;
   vae: string;
   negativePrompt?: string;
+  sourceImage?: File | undefined;
+  faceImage?: File | undefined;
 }) {
   try {
     const session = await getSession();
@@ -264,7 +345,7 @@ export async function generateImageAction({
       sampler,
       vae,
       negativePrompt,
-      userId: session.id
+      userId: Number(session.id) // number 타입으로 변환
     });
 
     if (!result.success || !result.imageUrl) {
@@ -283,16 +364,20 @@ export async function generateImageAction({
       const title = `text-image-${result.id}`;
       
       try {
-        // 2. DB 타이틀 업데이트
-        await db.aIImage.update({
-          where: { id: result.id },
-          data: { 
-            title,
-            // isPermanent 필드를 명시적으로 false로 설정
-            isPermanent: false
-          }
-        });
-        console.log(`[이미지 생성] 타이틀 설정 완료: ${title}`);
+        // 2. DB 타이틀 업데이트 - 유효성 검사 추가
+        if (isNaN(result.id) || result.id <= 0) {
+          console.error(`[이미지 생성] 유효하지 않은 이미지 ID: ${result.id}`);
+        } else {
+          await db.aIImage.update({
+            where: { id: result.id },
+            data: { 
+              title,
+              // isPermanent 필드를 명시적으로 false로 설정
+              isPermanent: false
+            }
+          });
+          console.log(`[이미지 생성] 타이틀 설정 완료: ${title}`);
+        }
         
         // 3. Cloudflare 업로드 스케줄링 (비동기로 실행)
         console.log(`[이미지 생성] Cloudflare 업로드 시작 (ID: ${result.id})`);
@@ -300,6 +385,11 @@ export async function generateImageAction({
         // 백그라운드 프로세스 실행 확인을 위한 즉시 실행 함수
         (async () => {
           try {
+            if (!result.imageUrl) {
+              console.error('[이미지 생성] Cloudflare 업로드 실패: 이미지 URL이 없습니다');
+              return;
+            }
+            
             const uploadResult = await scheduleCloudflareUpload(result.id!, result.imageUrl);
             console.log(`[이미지 생성] Cloudflare 업로드 시작됨:`, 
               uploadResult.success ? '성공' : '실패',
@@ -309,10 +399,21 @@ export async function generateImageAction({
             // 업로드 시작 후 5초 뒤에 실제 처리 상태 확인
             setTimeout(async () => {
               try {
+                if (isNaN(result.id!) || result.id! <= 0) {
+                  console.error(`[이미지 생성] 상태 확인 실패: 유효하지 않은 ID ${result.id}`);
+                  return;
+                }
+                
                 const imageStatus = await db.aIImage.findUnique({
-                  where: { id: result.id }
+                  where: { id: result.id! }
                 });
-                console.log(`[이미지 생성] 5초 후 상태 확인: ID=${result.id}, isPermanent=${imageStatus?.isPermanent}, fileUrl=${imageStatus?.fileUrl ? 'exists' : 'none'}`);
+                
+                if (!imageStatus) {
+                  console.error(`[이미지 생성] 상태 확인 실패: ID ${result.id}의 이미지를 찾을 수 없음`);
+                  return;
+                }
+                
+                console.log(`[이미지 생성] 5초 후 상태 확인: ID=${result.id}, isPermanent=${imageStatus.isPermanent}, fileUrl=${imageStatus.fileUrl ? 'exists' : 'none'}`);
               } catch (err) {
                 console.error('[이미지 생성] 상태 확인 실패:', err);
               }
@@ -325,6 +426,8 @@ export async function generateImageAction({
         console.error('[이미지 생성] DB 업데이트 실패:', dbError);
         // DB 업데이트 실패해도 이미지 생성은 성공했으므로 계속 진행
       }
+    } else {
+      console.warn('[이미지 생성] 이미지 ID가 없습니다. Cloudflare 업로드를 건너뜁니다.');
     }
 
     return {
@@ -529,6 +632,187 @@ export async function getPublicImages({
       success: false,
       error: '이미지 목록을 불러오는 중 오류가 발생했습니다',
       images: []
+    };
+  }
+}
+
+// 이미지 생성 응답 타입 정의
+export type ImageGenerationResponse = 
+  | { success: true; id?: string | number; url: string }
+  | { success: false; error: string };
+
+export async function imageGenerateImage(formData: FormData): Promise<ImageGenerationResponse> {
+  const session = await getSession();
+
+  if (!session?.id) {
+    return { success: false, error: "로그인이 필요합니다." };
+  }
+
+  const imageUrl = formData.get("imageUrl") as string;
+  const prompt = formData.get("prompt") as string;
+  const negativePrompt = formData.get("negativePrompt") as string;
+  const width = parseInt(formData.get("width") as string) || 512;
+  const height = parseInt(formData.get("height") as string) || 512;
+  const num_inference_steps = parseInt(formData.get("num_inference_steps") as string) || 30;
+  const guidance_scale = parseFloat(formData.get("guidance_scale") as string) || 7.5;
+  const scheduler = (formData.get("scheduler") as string) || "K_EULER";
+  const strength = parseFloat(formData.get("strength") as string) || 0.75;
+  const model = formData.get("model") as string;
+
+  if (!imageUrl || !prompt || !model) {
+    return { success: false, error: "이미지, 프롬프트, 모델이 필요합니다." };
+  }
+
+  try {
+    // 모델 정보 가져오기
+    const modelInfo = getImageModelById(model);
+    if (!modelInfo) {
+      return { success: false, error: "유효하지 않은 모델입니다." };
+    }
+
+    // API 요청 준비
+    const apiVersion = modelInfo.version || modelInfo.apiModel;
+    console.log(`[imageGenerateImage] API 호출 시작: 모델=${model}, 버전=${apiVersion}`);
+
+    // API 요청 파라미터 준비
+    const params = {
+      prompt,
+      negative_prompt: negativePrompt,
+      image: imageUrl,
+      width,
+      height,
+      num_inference_steps,
+      guidance_scale,
+      scheduler,
+      strength,
+      ...(modelInfo.additionalParams || {})
+    };
+
+    // Replicate API 호출
+    const response = await fetch("https://api.replicate.com/v1/predictions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Token ${process.env.REPLICATE_API_TOKEN}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        version: apiVersion,
+        input: params,
+      }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      console.error("[imageGenerateImage] API 오류:", error);
+      return { success: false, error: error.detail || "이미지 생성에 실패했습니다" };
+    }
+
+    const data = await response.json();
+    if (!data.id) {
+      return { success: false, error: "이미지 생성 ID를 받지 못했습니다" };
+    }
+
+    // 결과 URL을 얻을 때까지 폴링
+    let resultUrl = null;
+    let attempts = 0;
+    const maxAttempts = 30;
+
+    while (!resultUrl && attempts < maxAttempts) {
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      const statusResponse = await fetch(`https://api.replicate.com/v1/predictions/${data.id}`, {
+        headers: {
+          'Authorization': `Token ${process.env.REPLICATE_API_TOKEN}`,
+        },
+      });
+
+      if (!statusResponse.ok) {
+        console.error("[imageGenerateImage] 상태 확인 실패:", await statusResponse.text());
+        attempts++;
+        continue;
+      }
+
+      const statusData = await statusResponse.json();
+      console.log(`[imageGenerateImage] 상태: ${statusData.status}`);
+
+      if (statusData.status === 'succeeded') {
+        resultUrl = Array.isArray(statusData.output) ? statusData.output[0] : statusData.output;
+        break;
+      } else if (statusData.status === 'failed') {
+        console.error("[imageGenerateImage] 생성 실패:", statusData.error);
+        return { success: false, error: "이미지 생성에 실패했습니다: " + statusData.error };
+      }
+
+      attempts++;
+    }
+
+    if (!resultUrl) {
+      return { success: false, error: "이미지 생성 시간이 초과되었습니다" };
+    }
+
+    console.log(`[imageGenerateImage] 성공: URL=${resultUrl.substring(0, 30)}...`);
+
+    // 이미지 생성 기록 DB에 저장
+    const imageGeneration = await db.aIImage.create({
+      data: {
+        userId: session.id,
+        title: `image-${Date.now()}`,
+        prompt,
+        negativePrompt: negativePrompt || "",
+        model,
+        status: "completed",
+        fileUrl: resultUrl,
+        thumbnailUrl: resultUrl,
+        width,
+        height,
+        format: "png",
+        isPermanent: false,
+        isPublic: false,
+        category: "other",
+      },
+    });
+
+    console.log(`[imageGenerateImage] DB 저장 완료: ID=${imageGeneration.id}`);
+
+    // Cloudflare 업로드 예약 (비동기로 실행)
+    (async () => {
+      try {
+        console.log(`[imageGenerateImage] Cloudflare 업로드 시작: ID=${imageGeneration.id}, URL=${resultUrl.substring(0, 30)}...`);
+        const uploadResult = await scheduleCloudflareUpload(imageGeneration.id, resultUrl);
+        
+        if (uploadResult.success) {
+          console.log(`[imageGenerateImage] Cloudflare 업로드 요청 성공: 상태=${uploadResult.status}`);
+        } else {
+          console.error(`[imageGenerateImage] Cloudflare 업로드 요청 실패: '알 수 없는 오류'}`);
+          
+          // 5초 후 다시 시도
+          setTimeout(async () => {
+            try {
+              console.log(`[imageGenerateImage] Cloudflare 업로드 재시도: ID=${imageGeneration.id}`);
+              const retryResult = await scheduleCloudflareUpload(imageGeneration.id, resultUrl);
+              console.log(`[imageGenerateImage] 업로드 재시도 결과:`, 
+                retryResult.success ? '성공' : '실패',
+                retryResult.status
+              );
+            } catch (retryErr) {
+              console.error('[imageGenerateImage] Cloudflare 업로드 재시도 실패:', retryErr);
+            }
+          }, 5000);
+        }
+      } catch (err) {
+        console.error('[imageGenerateImage] Cloudflare 업로드 스케줄링 실패:', err);
+      }
+    })();
+
+    return {
+      success: true,
+      url: resultUrl,
+      id: imageGeneration.id
+    };
+  } catch (error) {
+    console.error('[imageGenerateImage] 예외 발생:', error);
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : "이미지 처리 중 오류가 발생했습니다" 
     };
   }
 } 

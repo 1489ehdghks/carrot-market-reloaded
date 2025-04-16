@@ -1,39 +1,41 @@
 "use client";
 
 import { useRef, useState, useCallback, useMemo, useEffect } from "react";
-import { generateImageAction } from "@/app/(tabs)/image/actions";
-import { Loader2, Wand2, ChevronsUpDown } from "lucide-react";
+import { generateImageWithImage, imageGenerateImage, type ImageGenerationResponse } from "@/app/(tabs)/image/actions";
+import { Loader2, Wand2, User } from "lucide-react";
 import { useImageUpload } from "@/features/image/hooks/useImageUpload";
 import { useFormStatusManager } from "@/features/image/hooks/useFormStatusManager";
 import { useCloudflareUpload } from "@/features/image/hooks/useCloudflareUpload";
-import { handleGlobalError, UserFacingError } from "@/shared/lib/error-handling";
+import { UserFacingError } from "@/shared/lib/error-handling";
 import PromptTextarea from "../shared/PromptTextarea";
 import { Button } from "@/widgets/elements/sub/button";
 import { CustomSelect, CustomSelectContent, CustomSelectItem, CustomSelectTrigger, CustomSelectValue } from "@/widgets/elements/custom-select";
 import { CustomLabel } from "@/widgets/elements/custom-label";
-import { IMAGE_MODELS, getImageModelById } from "@/shared/models/image/imageModels";
-import { CustomTooltip } from "@/widgets/shared/custom-tooltip";
+import { getImageModelById } from "@/shared/models/image/imageModels";
 import { CollapsiblePanel } from "../shared/CollapsiblePanel";
-import InstantIDModelSettings from "./InstantIDModelSettings";
-import StyleTransferModelSettings from "./StyleTransferModelSettings";
+import ModelSelectorImage from "../shared/ModelSelector-image";
+import { CustomSlider } from "@/widgets/elements/custom-slider";
+import { toast } from "react-hot-toast";
 
 interface ImageToImageFormProps {
   onGenerationStart: () => void;
   onGenerationComplete: (imageUrl: string, imageId: string, thumbnailUrl?: string) => void;
+  onError: (message: string) => void;
   compact?: boolean;
 }
 
 export default function ImageToImageForm({ 
   onGenerationStart, 
   onGenerationComplete, 
+  onError,
   compact = false
 }: ImageToImageFormProps) {
   // 커스텀 훅 사용
   const {
-    imageFile,
-    previewUrl,
-    handleImageSelect,
-    clearImage
+    imageFile: sourceImageFile,
+    previewUrl: sourceImagePreview,
+    handleImageSelect: handleSourceImageSelect,
+    clearImage: clearSourceImage
   } = useImageUpload({ maxSizeMB: 10 });
   
   const {
@@ -55,9 +57,10 @@ export default function ImageToImageForm({
   const [showAdvancedSettings, setShowAdvancedSettings] = useState<boolean>(false);
   
   // InstantID 관련 상태
-  const [faceImageFile, setFaceImageFile] = useState<File | null>(null);
+  const [faceImageFile, setFaceImageFile] = useState<File | undefined>(undefined);
   const [faceImagePreview, setFaceImagePreview] = useState<string | null>(null);
   const faceImageRef = useRef<HTMLInputElement>(null);
+  const sourceImageRef = useRef<HTMLInputElement>(null);
   
   // 이미지 크기
   const [imageWidth, setImageWidth] = useState<number>(768);
@@ -126,14 +129,14 @@ export default function ImageToImageForm({
   useEffect(() => {
     return () => {
       // URL 객체 메모리 누수 방지
-      if (previewUrl) {
-        URL.revokeObjectURL(previewUrl);
+      if (sourceImagePreview) {
+        URL.revokeObjectURL(sourceImagePreview);
       }
       if (faceImagePreview) {
         URL.revokeObjectURL(faceImagePreview);
       }
     };
-  }, [previewUrl, faceImagePreview]);
+  }, [sourceImagePreview, faceImagePreview]);
   
   // 설정값 저장 함수
   const saveToLocalStorage = useCallback((key: string, value: any) => {
@@ -222,15 +225,15 @@ export default function ImageToImageForm({
     saveToLocalStorage(STORAGE_KEYS.ADVANCED_SETTINGS, open);
   };
   
-  // 이미지 파일 선택 핸들러
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  // 원본 이미지 파일 선택 핸들러
+  const handleSourceImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     
     try {
-      await handleImageSelect(file);
+      await handleSourceImageSelect(file);
     } catch (error) {
-      console.error("Image upload error:", error);
+      console.error("Source image upload error:", error);
     }
   };
   
@@ -255,7 +258,7 @@ export default function ImageToImageForm({
   
   // 얼굴 참조 이미지 초기화
   const clearFaceImage = () => {
-    setFaceImageFile(null);
+    setFaceImageFile(undefined);
     setFaceImagePreview(null);
     if (faceImageRef.current) {
       faceImageRef.current.value = '';
@@ -282,136 +285,172 @@ export default function ImageToImageForm({
     return fileKey; // 업로드된 이미지의 키 반환
   };
   
-  // 이미지 생성 함수
-  const generateImage = async ({
-    prompt,
-    modelId,
-    width,
-    height,
-    sourceImage,
-    useFaceSwap,
-    faceImage
-  }: {
-    prompt: string;
-    modelId: string;
-    width: number;
-    height: number;
-    sourceImage: File;
-    useFaceSwap?: boolean;
-    faceImage?: File | null;
-  }) => {
-    try {
-      const formData = new FormData();
-      formData.append('sourceImage', sourceImage);
-
-      const result = await generateImageAction({
-        prompt,
-        modelId,
-        width,
-        height,
-        steps: config.num_inference_steps || 30,
-        cfgScale: config.guidance_scale || 5.0,
-        sampler: config.sampler || 'ddim',
-        vae: config.vae || '',
-        negativePrompt,
-        useFaceSwap,
-        faceImage: faceImage || undefined,
-        faceSwapModelId: config.faceSwapModelId || '',
-        faceSwapStrength: config.faceSwapStrength || 0.8,
-        faceSwapOptions: config.faceSwapOptions || {}
-      });
-
-      if (!result.success) {
-        throw new Error(result.error);
+  // 간소화된 이미지 최적화 함수
+  const optimizeImage = async (base64: string, maxWidth = 512, quality = 0.6): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      try {
+        const img = new Image();
+        img.onload = () => {
+          // 캔버스 생성
+          const canvas = document.createElement('canvas');
+          
+          // 이미지 크기 계산
+          let width = img.width;
+          let height = img.height;
+          
+          // 이미지 비율 유지하며 크기 조정
+          if (width > maxWidth) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          }
+          
+          // 최대 높이 제한 (너비 조정 이후)
+          const maxHeight = Math.min(768, maxWidth * 1.5);
+          if (height > maxHeight) {
+            width = Math.round((width * maxHeight) / height);
+            height = maxHeight;
+          }
+          
+          // 캔버스 크기 설정
+          canvas.width = width;
+          canvas.height = height;
+          
+          // 이미지 그리기
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            reject(new Error('캔버스 컨텍스트를 생성할 수 없습니다'));
+            return;
+          }
+          
+          // 이미지 선명도 설정
+          ctx.imageSmoothingEnabled = true;
+          ctx.imageSmoothingQuality = 'high';
+          
+          // 배경 채우기 (투명 배경이 있는 PNG 처리용)
+          ctx.fillStyle = '#FFFFFF';
+          ctx.fillRect(0, 0, width, height);
+          
+          // 이미지 그리기
+          ctx.drawImage(img, 0, 0, width, height);
+          
+          // JPEG 형식으로 변환하여 크기 최적화
+          resolve(canvas.toDataURL('image/jpeg', quality));
+        };
+        
+        img.onerror = (error) => {
+          reject(new Error('이미지 로드 중 오류가 발생했습니다'));
+        };
+        
+        img.src = base64;
+      } catch (error) {
+        reject(error);
       }
-
-      return result;
-    } catch (error) {
-      console.error('이미지 생성 API 호출 중 오류:', error);
-      throw error;
-    }
+    });
   };
   
   // 이미지 생성 핸들러
-  const handleImageGeneration = async () => {
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!sourceImageFile) {
+      toast.error("이미지를 업로드해주세요");
+      return;
+    }
+    
+    if (!prompt) {
+      toast.error("프롬프트를 입력해주세요");
+      return;
+    }
+    
+    if (!selectedModel) {
+      toast.error("모델을 선택해주세요");
+      return;
+    }
+
+    // 처리 시작
+    startProcess('generating');
+    onGenerationStart();
+    
+    // 토스트 메시지로 시작 알림
+    const toastId = toast.loading("이미지 변환 중...");
+    
     try {
-      if (!imageFile) {
-        handleError(new UserFacingError('원본 이미지가 필요합니다'));
-        return;
-      }
-
-      if (!selectedModelId) {
-        handleError(new UserFacingError('변환 모델을 선택해주세요'));
-        return;
-      }
-
-      if (selectedModel?.requiredImages.sourceImage && !imageFile) {
-        handleError(new UserFacingError('원본 이미지를 업로드해주세요'));
-        return;
-      }
-
-      if (selectedModel?.requiredImages.faceImage && !faceImageFile) {
-        handleError(new UserFacingError('얼굴 참조 이미지를 업로드해주세요'));
-        return;
-      }
-
-      onGenerationStart();
-      startProcess('generating');
-
-      const result = await generateImage({
-        prompt,
-        modelId: selectedModelId,
-        width: imageWidth,
-        height: imageHeight,
-        sourceImage: imageFile,
-        useFaceSwap: selectedModel?.requiredImages.faceImage,
-        faceImage: faceImageFile
+      // 1. 이미지를 Base64로 변환
+      const base64Image = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(sourceImageFile);
       });
 
+      // 2. 이미지 최적화 (매우 보수적인 설정으로 크기 줄이기)
+      const optimizedImage = await optimizeImage(base64Image, 512, 0.6);
+      const originalSize = Math.round(base64Image.length / 1024);
+      const optimizedSize = Math.round(optimizedImage.length / 1024);
+      
+      console.log(`이미지 최적화: ${originalSize}KB → ${optimizedSize}KB (${Math.round((1 - optimizedSize/originalSize) * 100)}% 압축)`);
+      
+      // 이미지가 여전히 너무 크면 더 강력하게 압축
+      let finalImage = optimizedImage;
+      if (optimizedSize > 1024) {
+        console.warn(`이미지가 여전히 큼 (${optimizedSize}KB), 추가 압축 실행`);
+        finalImage = await optimizeImage(optimizedImage, 400, 0.5);
+        const finalSize = Math.round(finalImage.length / 1024);
+        console.log(`추가 압축: ${optimizedSize}KB → ${finalSize}KB (${Math.round((1 - finalSize/optimizedSize) * 100)}% 추가 압축)`);
+      }
+
+      // 3. FormData 생성
+      const formData = new FormData();
+      
+      // Base64 이미지 데이터 준비 - 프리픽스 처리 추가
+      const finalImageData = finalImage.includes('base64,') ? finalImage : finalImage;
+      
+      formData.append("imageUrl", finalImageData);
+      formData.append("prompt", prompt);
+      formData.append("negativePrompt", negativePrompt || "");
+      formData.append("width", imageWidth.toString());
+      formData.append("height", imageHeight.toString());
+      formData.append("num_inference_steps", config.num_inference_steps?.toString() || "30");
+      formData.append("guidance_scale", config.guidance_scale?.toString() || "7.5");
+      formData.append("scheduler", config.scheduler || "DPMSolverMultistep");
+      formData.append("strength", config.strength?.toString() || "0.7");
+      formData.append("model", selectedModel.id);
+      
+      // 토스트 메시지 업데이트
+      toast.loading("Replicate AI에 요청 보내는 중...", { id: toastId });
+      
+      // 4. 서버 액션 호출 (Replicate API 처리)
+      const result = await imageGenerateImage(formData);
+      
       if (!result.success) {
-        handleError(new UserFacingError(result.error!));
-        return;
+        toast.error(result.error || "이미지 변환에 실패했습니다", { id: toastId });
+        throw new Error(result.error || "이미지 변환에 실패했습니다");
       }
-
+      
+      // 5. 성공 처리
+      toast.success("이미지 변환 완료!", { id: toastId });
+      
+      // 임시 상태 업데이트 (백그라운드 저장 중)
       startProcess('saving');
-      const uploadResult = await uploadToPermanentStorage(
-        result.imageUrl,
-        result.imageId?.toString() || `temp-${Date.now()}`,
-        imageWidth,
-        imageHeight
-      );
-
-      if (!uploadResult.success || !uploadResult.url) {
-        handleError(new UserFacingError('이미지 저장에 실패했습니다'));
-        return;
-      }
-
+      
+      // 6. 결과 처리
       setSuccess();
       onGenerationComplete(
-        uploadResult.url,
-        uploadResult.id || String(Date.now()),
-        uploadResult.thumbnailUrl || undefined
+        result.url,
+        result.id?.toString() || `result_${Date.now()}`,
+        result.url
       );
-
-      // localStorage에 현재 상태 저장
-      localStorage.setItem('model', selectedModelId);
-      localStorage.setItem('width', imageWidth.toString());
-      localStorage.setItem('height', imageHeight.toString());
-      localStorage.setItem('steps', (config.num_inference_steps || 30).toString());
-      localStorage.setItem('cfgScale', (config.guidance_scale || 5.0).toString());
-      localStorage.setItem('sampler', config.sampler || 'ddim');
-      localStorage.setItem('vae', config.vae || '');
-
-      // 경고 메시지가 있는 경우 표시
-      if (result.warning) {
-        console.warn(result.warning);
-      }
-
+      
     } catch (error) {
-      console.error('이미지 생성 중 오류 발생:', error);
-      handleError(error instanceof UserFacingError ? error : new UserFacingError('알 수 없는 오류가 발생했습니다'));
+      // 에러 처리
+      console.error("이미지 변환 오류:", error);
+      handleError(error instanceof Error ? error.message : "이미지 변환 중 오류가 발생했습니다");
+      toast.error("이미지 변환 실패", { id: toastId });
     } finally {
-      startProcess('idle');
+      // 약간의 딜레이 후 상태 변경 (UX 개선)
+      setTimeout(() => {
+        startProcess('idle');
+      }, 500);
     }
   };
   
@@ -457,127 +496,81 @@ export default function ImageToImageForm({
     </div>
   );
   
-  return (
-    <form onSubmit={handleImageGeneration} className="space-y-6">
-      {/* 모델 선택 */}
-      <div className="space-y-2">
-        <CustomLabel className="text-sm font-medium">변환 모델 선택</CustomLabel>
-        <CustomSelect 
-          value={selectedModelId} 
-          onValueChange={handleModelChange}
-        >
-          <CustomSelectTrigger className="w-full bg-neutral-800 border-neutral-700">
-            <CustomSelectValue placeholder="모델 선택" />
-          </CustomSelectTrigger>
-          <CustomSelectContent className="bg-neutral-800 border-neutral-700">
-            {IMAGE_MODELS.map((model) => (
-              <CustomSelectItem 
-                key={model.id} 
-                value={model.id}
-                className="flex items-center justify-between"
-              >
-                <div className="flex flex-col">
-                  <span>{model.name}</span>
+  // 이미지 업로더 렌더링 함수
+  const renderImageUploader = () => {
+    if (!selectedModel) return null;
+    
+    return (
+      <div className="space-y-4">
+        {/* 얼굴 참조 이미지 업로드 영역 - 선택된 모델이 얼굴 이미지를 필요로 할 때만 표시 */}
+        {selectedModel.requiredImages.faceImage && (
+          <div className="space-y-2">
+            <CustomLabel className="text-sm font-medium">얼굴 참조 이미지</CustomLabel>
+            <div className="border border-neutral-800 rounded-lg p-4 bg-neutral-900/50">
+              <div className="flex items-center space-x-4">
+                <div className="w-32 h-32 bg-neutral-800 border border-neutral-700 rounded-lg overflow-hidden">
+                  {faceImagePreview ? (
+                    <img 
+                      src={faceImagePreview} 
+                      alt="얼굴 참조 이미지" 
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <User className="w-10 h-10 text-neutral-500" />
+                    </div>
+                  )}
                 </div>
-              </CustomSelectItem>
-            ))}
-          </CustomSelectContent>
-        </CustomSelect>
-        
-        {/* 선택된 모델 정보 */}
-        {selectedModel && (
-          <div className="p-3 bg-neutral-900 rounded-lg border border-neutral-800">
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="font-medium">{selectedModel.name}</h3>
-              <div className="flex items-center space-x-2">
-                <CustomTooltip title="모델 품질"
-                  description="높을수록 더 좋은 품질의 이미지를 생성할 수 있습니다."
-                >
-                  <div className="px-2 py-1 bg-orange-800/30 rounded-lg text-xs">
-                    {selectedModel.features.quality}
-                  </div>
-                </CustomTooltip>
                 
-                <CustomTooltip title="처리 속도" 
-                  description="빠를수록 이미지 생성 시간이 단축됩니다."
-                >
-                  <div className="px-2 py-1 bg-blue-800/30 rounded text-xs">
-                    {selectedModel.features.speed}
-                  </div>
-                </CustomTooltip>
-                
-                <CustomTooltip title="이용 가격" 
-                  description="이 모델 사용 시 소모되는 크레딧 양입니다."
-                >
-                  <div className="px-2 py-1 bg-green-800/30 rounded text-xs">
-                    {selectedModel.tokenPrice} token
-                  </div>
-                </CustomTooltip>
+                <div className="flex-1 space-y-2">
+                  {faceImagePreview ? (
+                    <Button 
+                      type="button" 
+                      variant="outline"
+                      onClick={clearFaceImage}
+                      className="w-full"
+                    >
+                      이미지 변경
+                    </Button>
+                  ) : (
+                    <Button 
+                      type="button" 
+                      variant="outline"
+                      onClick={() => faceImageRef.current?.click()}
+                      className="w-full"
+                    >
+                      이미지 선택
+                    </Button>
+                  )}
+                  <p className="text-xs text-gray-400">
+                    선명한 얼굴이 나온 이미지를 선택하세요
+                  </p>
+                </div>
+                <input
+                  ref={faceImageRef}
+                  type="file"
+                  onChange={handleFaceImageUpload}
+                  accept="image/*"
+                  className="hidden"
+                />
               </div>
             </div>
-            <p className="text-sm text-gray-400">{selectedModel.description}</p>
           </div>
         )}
       </div>
+    );
+  };
+  
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      {/* 모델 선택 */}
+      <div className="space-y-2">
+        <ModelSelectorImage 
+          selectedModel={selectedModelId} 
+          onModelChange={handleModelChange}
+        />
+      </div>
 
-      {/* 원본 이미지 업로드 영역 - 선택된 모델이 원본 이미지를 필요로 할 때만 표시 */}
-      {selectedModel?.requiredImages.sourceImage && (
-        <div className="space-y-2">
-          <CustomLabel className="text-sm font-medium">원본 이미지 (변환할 이미지)</CustomLabel>
-          <div className="border border-neutral-800 rounded-lg p-4 bg-neutral-900/50">
-            <div className="flex items-center space-x-4">
-              <div className="w-32 h-32 bg-neutral-800 border border-neutral-700 rounded-lg overflow-hidden">
-                {previewUrl ? (
-                  <img 
-                    src={previewUrl} 
-                    alt="미리보기" 
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center">
-                    <svg className="w-10 h-10 text-neutral-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
-                  </div>
-                )}
-              </div>
-              
-              <div className="flex-1 space-y-2">
-                {previewUrl ? (
-                  <Button 
-                    type="button" 
-                    variant="outline"
-                    onClick={clearImage}
-                    className="w-full"
-                  >
-                    이미지 변경
-                  </Button>
-                ) : (
-                  <Button 
-                    type="button" 
-                    variant="outline"
-                    onClick={() => document.getElementById('image-upload')?.click()}
-                    className="w-full"
-                  >
-                    이미지 선택
-                  </Button>
-                )}
-                <p className="text-xs text-gray-400">
-                  최대 10MB, JPG, PNG, WEBP 형식 지원
-                </p>
-              </div>
-              <input
-                id="image-upload"
-                type="file"
-                onChange={handleImageUpload}
-                accept="image/*"
-                className="hidden"
-              />
-            </div>
-          </div>
-        </div>
-      )}
-      
       {/* 이미지 크기 설정 영역 */}
       {selectedModelId && renderSizeSettings()}
 
@@ -592,34 +585,6 @@ export default function ImageToImageForm({
         className="bg-neutral-800 rounded-lg"
       />
       
-      {/* 모델별 기본 설정 영역 - 조건부 렌더링 */}
-      {selectedModelId === 'instantId' && selectedModel?.requiredImages.faceImage ? (
-        <InstantIDModelSettings
-          faceImagePreview={faceImagePreview}
-          config={config}
-          onConfigChange={handleConfigChange}
-          onFaceImageClick={() => faceImageRef.current?.click()}
-          clearFaceImage={clearFaceImage}
-          faceImageRef={faceImageRef as React.RefObject<HTMLInputElement>}
-          handleFaceImageUpload={handleFaceImageUpload}
-          showAdvancedSettings={false}
-        />
-      ) : selectedModelId === 'styleTransfer' ? (
-        <StyleTransferModelSettings
-          strength={strength}
-          onStrengthChange={handleStrengthChange}
-          config={config}
-          onConfigChange={handleConfigChange}
-          showAdvancedSettings={false}
-        />
-      ) : (
-        selectedModelId && (
-          <div className="p-4 text-center text-neutral-400">
-            기본 설정을 사용합니다
-          </div>
-        )
-      )}
-      
       {/* 고급 설정 패널 - onOpenChange 함수 변경 */}
       <CollapsiblePanel 
         title="고급 설정" 
@@ -631,29 +596,208 @@ export default function ImageToImageForm({
             <div className="text-center text-neutral-400 py-4">
               모델을 선택해주세요
             </div>
-          ) : selectedModelId === 'instantId' ? (
-            <InstantIDModelSettings
-              faceImagePreview={faceImagePreview}
-              config={config}
-              onConfigChange={handleConfigChange}
-              onFaceImageClick={() => faceImageRef.current?.click()}
-              clearFaceImage={clearFaceImage}
-              faceImageRef={faceImageRef as React.RefObject<HTMLInputElement>}
-              handleFaceImageUpload={handleFaceImageUpload}
-              showAdvancedSettings={true}
-            />
-          ) : selectedModelId === 'styleTransfer' ? (
-            <StyleTransferModelSettings
-              strength={strength}
-              onStrengthChange={handleStrengthChange}
-              config={config}
-              onConfigChange={handleConfigChange}
-              showAdvancedSettings={true}
-            />
           ) : (
-            <div className="text-center text-neutral-400 py-4">
-              이 모델에 대한 고급 설정이 없습니다
-            </div>
+            <>
+              {/* 이미지 업로더 */}
+              {selectedModel?.requiredImages.sourceImage && (
+                <div className="space-y-2">
+                  <CustomLabel className="text-sm font-medium">원본 이미지</CustomLabel>
+                  <div className="border border-neutral-800 rounded-lg p-4 bg-neutral-900/50">
+                    <div className="flex items-center space-x-4">
+                      <div className="w-32 h-32 bg-neutral-800 border border-neutral-700 rounded-lg overflow-hidden">
+                        {sourceImagePreview ? (
+                          <img 
+                            src={sourceImagePreview} 
+                            alt="원본 이미지" 
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center">
+                            <User className="w-10 h-10 text-neutral-500" />
+                          </div>
+                        )}
+                      </div>
+                      
+                      <div className="flex-1 space-y-2">
+                        {sourceImagePreview ? (
+                          <Button 
+                            type="button" 
+                            variant="outline"
+                            onClick={clearSourceImage}
+                            className="w-full"
+                          >
+                            이미지 변경
+                          </Button>
+                        ) : (
+                          <Button 
+                            type="button" 
+                            variant="outline"
+                            onClick={() => sourceImageRef.current?.click()}
+                            className="w-full"
+                          >
+                            이미지 선택
+                          </Button>
+                        )}
+                        <p className="text-xs text-gray-400">
+                          변환할 원본 이미지를 선택하세요
+                        </p>
+                      </div>
+                      <input
+                        ref={sourceImageRef}
+                        type="file"
+                        onChange={handleSourceImageUpload}
+                        accept="image/*"
+                        className="hidden"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* 얼굴 이미지 업로더 */}
+              {selectedModel?.requiredImages.faceImage && (
+                <div className="space-y-2">
+                  <CustomLabel className="text-sm font-medium">얼굴 참조 이미지</CustomLabel>
+                  <div className="border border-neutral-800 rounded-lg p-4 bg-neutral-900/50">
+                    <div className="flex items-center space-x-4">
+                      <div className="w-32 h-32 bg-neutral-800 border border-neutral-700 rounded-lg overflow-hidden">
+                        {faceImagePreview ? (
+                          <img 
+                            src={faceImagePreview} 
+                            alt="얼굴 참조 이미지" 
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center">
+                            <User className="w-10 h-10 text-neutral-500" />
+                          </div>
+                        )}
+                      </div>
+                      
+                      <div className="flex-1 space-y-2">
+                        {faceImagePreview ? (
+                          <Button 
+                            type="button" 
+                            variant="outline"
+                            onClick={clearFaceImage}
+                            className="w-full"
+                          >
+                            이미지 변경
+                          </Button>
+                        ) : (
+                          <Button 
+                            type="button" 
+                            variant="outline"
+                            onClick={() => faceImageRef.current?.click()}
+                            className="w-full"
+                          >
+                            이미지 선택
+                          </Button>
+                        )}
+                        <p className="text-xs text-gray-400">
+                          선명한 얼굴이 나온 이미지를 선택하세요
+                        </p>
+                      </div>
+                      <input
+                        ref={faceImageRef}
+                        type="file"
+                        onChange={handleFaceImageUpload}
+                        accept="image/*"
+                        className="hidden"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* scheduler 설정 */}
+              <div className="space-y-2">
+                <CustomLabel className="text-sm font-medium">샘플러</CustomLabel>
+                <CustomSelect
+                  value={config.scheduler || 'K_EULER_ANCESTRAL'}
+                  onValueChange={(value) => handleConfigChange('scheduler', value)}
+                >
+                  <CustomSelectTrigger className="w-full">
+                    <CustomSelectValue placeholder="샘플러 선택" />
+                  </CustomSelectTrigger>
+                  <CustomSelectContent>
+                    <CustomSelectItem value="DDIM">DDIM</CustomSelectItem>
+                    <CustomSelectItem value="DPMSolverMultistep">DPMSolverMultistep</CustomSelectItem>
+                    <CustomSelectItem value="HeunDiscrete">HeunDiscrete</CustomSelectItem>
+                    <CustomSelectItem value="KarrasDPM">KarrasDPM</CustomSelectItem>
+                    <CustomSelectItem value="K_EULER_ANCESTRAL">K_EULER_ANCESTRAL</CustomSelectItem>
+                    <CustomSelectItem value="K_EULER">K_EULER</CustomSelectItem>
+                    <CustomSelectItem value="PNDM">PNDM</CustomSelectItem>
+                  </CustomSelectContent>
+                </CustomSelect>
+                <p className="text-xs text-gray-400">
+                  이미지 생성에 사용할 샘플러를 선택합니다. 각 샘플러는 다른 특성을 가집니다.
+                </p>
+              </div>
+
+              {/* Guidance Scale 설정 */}
+              <div className="space-y-2">
+                <CustomLabel className="text-sm font-medium">CFG 스케일</CustomLabel>
+                <div className="flex items-center space-x-4">
+                  <CustomSlider
+                    value={[config.guidance_scale || 3.5]}
+                    onValueChange={(value) => handleConfigChange('guidance_scale', value[0])}
+                    min={1.0}
+                    max={50.0}
+                    step={0.5}
+                    className="flex-1"
+                  />
+                  <span className="text-sm text-neutral-400 w-12 text-right">
+                    {(config.guidance_scale || 3.5).toFixed(1)}
+                  </span>
+                </div>
+                <p className="text-xs text-gray-400">
+                  생성 과정에서 모델이 입력 텍스트(프롬프트)를 얼마나 중요하게 여길지 결정하는 변수
+                </p>
+              </div>
+
+              {/* Steps 설정 */}
+              <div className="space-y-2">
+                <CustomLabel className="text-sm font-medium">스텝 수</CustomLabel>
+                <div className="flex items-center space-x-4">
+                  <CustomSlider
+                    value={[config.num_inference_steps || 40]}
+                    onValueChange={(value) => handleConfigChange('num_inference_steps', value[0])}
+                    min={1}
+                    max={100}
+                    step={1}
+                    className="flex-1"
+                  />
+                  <span className="text-sm text-neutral-400 w-12 text-right">
+                    {config.num_inference_steps || 40}
+                  </span>
+                </div>
+                <p className="text-xs text-gray-400">
+                  이미지 생성 과정에서 모델이 노이즈를 점진적으로 제거하며 이미지를 세밀화하는 데 사용되는 단계의 수
+                </p>
+              </div>
+
+              {/* Strength 설정 */}
+              <div className="space-y-2">
+                <CustomLabel className="text-sm font-medium">이미지 영향력</CustomLabel>
+                <div className="flex items-center space-x-4">
+                  <CustomSlider
+                    value={[config.strength || 0.4]}
+                    onValueChange={(value) => handleConfigChange('strength', value[0])}
+                    min={0}
+                    max={1}
+                    step={0.01}
+                    className="flex-1"
+                  />
+                  <span className="text-sm text-neutral-400 w-12 text-right">
+                    {(config.strength || 0.4).toFixed(2)}
+                  </span>
+                </div>
+                <p className="text-xs text-gray-400">
+                  Prompt strength when using img2img, 낮을수록 이미지의 영향이 강함. 높으면 프롬프트의 영향이 강함.
+                </p>
+              </div>
+            </>
           )}
         </div>
       </CollapsiblePanel>
@@ -664,7 +808,7 @@ export default function ImageToImageForm({
         disabled={
           isProcessing || 
           !selectedModelId || 
-          (selectedModel?.requiredImages.sourceImage && !imageFile) || 
+          (selectedModel?.requiredImages.sourceImage && !sourceImageFile) || 
           (selectedModel?.requiredImages.faceImage && !faceImageFile)
         }
         className="w-full h-12 text-white bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700"
@@ -673,6 +817,7 @@ export default function ImageToImageForm({
           <>
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             {status === 'generating' && '이미지 변환 중...'}
+            {status === 'saving' && '이미지 저장 중...'}
           </>
         ) : (
           <>
