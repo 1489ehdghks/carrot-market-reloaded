@@ -1,5 +1,5 @@
 import { db } from "@/shared/lib/db";
-import { selectVariant } from "../utils";
+import { selectVariant } from "../../lib/utils";
 
 // 최적화된 Cloudflare 업로드 함수 (이미지 업로드 → 변형 생성)
 export async function optimizedUploadToCloudflare(imageUrl: string, title: string = '') {
@@ -19,11 +19,30 @@ export async function optimizedUploadToCloudflare(imageUrl: string, title: strin
     // 2. 이미지 URL에서 이미지 데이터 가져오기
     console.log('[Cloudflare 업로드] 이미지 다운로드 시도 중...');
     let imageResponse;
+    
+    // URL 유효성 검사 추가
     try {
+      // URL 형식 검증
+      new URL(imageUrl);
+    } catch (e) {
+      console.error('[Cloudflare 업로드] 유효하지 않은 URL 형식:', imageUrl, e);
+      return { success: false, error: `유효하지 않은 이미지 URL 형식: ${e instanceof Error ? e.message : String(e)}` };
+    }
+    
+    try {
+      console.log(`[Cloudflare 업로드] 이미지 URL 요청 시작: ${imageUrl.substring(0, 100)}...`);
       imageResponse = await fetch(imageUrl);
+      
       if (!imageResponse.ok) {
-        console.error(`[Cloudflare 업로드] 이미지 다운로드 실패: HTTP ${imageResponse.status}`);
-        return { success: false, error: `이미지 다운로드 실패: HTTP ${imageResponse.status}` };
+        console.error(`[Cloudflare 업로드] 이미지 다운로드 실패: HTTP ${imageResponse.status} - ${imageResponse.statusText}`);
+        return { success: false, error: `이미지 다운로드 실패: HTTP ${imageResponse.status} - ${imageResponse.statusText}` };
+      }
+      
+      // Content-Type 헤더 확인
+      const contentType = imageResponse.headers.get('content-type');
+      if (!contentType || !contentType.startsWith('image/')) {
+        console.error(`[Cloudflare 업로드] 응답이 이미지가 아님: ${contentType}`);
+        return { success: false, error: `응답이 이미지가 아닙니다 (Content-Type: ${contentType})` };
       }
     } catch (fetchError: unknown) {
       console.error('[Cloudflare 업로드] 이미지 다운로드 실패:', fetchError);

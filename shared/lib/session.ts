@@ -1,7 +1,7 @@
-import { getIronSession } from "iron-session";
 import { cookies } from "next/headers";
+import { getIronSession } from "iron-session";
 
-export interface SessionData {
+export type SessionData = {
     id?: number;
 }
 
@@ -12,6 +12,7 @@ export const sessionOptions = {
         secure: process.env.NODE_ENV === "production",
         httpOnly: true,
         sameSite: "lax" as const, // CSRF 보호
+        maxAge: 60 * 60 * 24 * 7, // 일주일
     }
 };
 

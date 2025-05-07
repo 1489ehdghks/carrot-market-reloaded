@@ -1,5 +1,5 @@
 import { getModelById } from "./image/textModels";
-import { getSpecialModelById } from "./image/specialModels";
+import { getEditModelById } from "./image/editModels";
 
 // 이미지 생성 비용 계산
 interface ImageCostParams {
@@ -45,7 +45,7 @@ export function calculateImageCost(params: ImageCostParams): {
 
   // Face Swap 추가 비용 계산
   if (faceSwapModelId) {
-    const faceSwapModel = getSpecialModelById(faceSwapModelId);
+    const faceSwapModel = getEditModelById(faceSwapModelId);
     if (faceSwapModel?.tokenPrice) {
       totalTokens += faceSwapModel.tokenPrice;
       breakdown.push({ name: "Face Swap 추가 비용", tokens: faceSwapModel.tokenPrice });

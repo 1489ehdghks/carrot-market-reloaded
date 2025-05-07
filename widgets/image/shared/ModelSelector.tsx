@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Info, ChevronDown } from "lucide-react";
 import { CustomTooltip } from "@/widgets/shared/custom-tooltip";
-import { AI_MODELS, CATEGORY_NAMES, AIModel, getModelById, getDefaultModel } from "@/shared/models/image/textModels";
+import { AI_MODELS, AIModel, getModelById, getDefaultModel } from "@/shared/models/image/textModels";
 
 interface ModelSelectorProps {
   selectedModel: string | AIModel;
@@ -75,6 +75,8 @@ export default function ModelSelector({ selectedModel, onModelChange }: ModelSel
                     {selectedModelObject.modelTags?.nsfwSupport ? "NSFW 허용" : "SFW 전용"}
                   </span>
                 </div>
+                
+               
               </div>
             }
           >
@@ -113,8 +115,12 @@ export default function ModelSelector({ selectedModel, onModelChange }: ModelSel
                 >
                   <div className="flex justify-between">
                     <h4 className="font-medium">{model.name}</h4>
-                    {model.isDefault && (
-                      <span className="text-xs px-2 py-0.5 bg-neutral-600 rounded-full">기본</span>
+                    {model.tokenPrice ? (
+                      <span className="text-xs px-2 py-0.5 bg-green-600 text-white rounded-full">
+                        {model.tokenPrice} 토큰
+                      </span>
+                    ) : (
+                      <span className="text-xs px-2 py-0.5 bg-neutral-600 rounded-full">준비중</span>
                     )}
                   </div>
                   

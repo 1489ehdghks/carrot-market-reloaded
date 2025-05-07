@@ -103,8 +103,8 @@ export const IMAGE_MODELS: ImageModel[] = [
   
   // 스타일 변환 모델
   {
-    id: "styleTransfer",
-    name: "스타일 변환",
+    id: "controlnet-x-ip-adapter-realistic-vision-v5",
+    name: "controlnet-vision-v5",
     description: "기존 이미지의 스타일을 다양한 예술 스타일로 변환합니다.",
     apiModel: "stability/sdxl-style-transformer:2c311d41ce53f629f65e23ce1801d3eed2a2eb2ab308e8c2790b5e67b407b459",
     price: 0.018,
@@ -240,7 +240,7 @@ export const IMAGE_MODELS: ImageModel[] = [
 export const TOKEN_EXCHANGE_RATE = 1000;
 
 // 추가 비용 배율 
-export const COST_MULTIPLIER = 1.8;
+export const COST_MULTIPLIER = 2.3;
 
 /**
  * 달러 가격을 토큰으로 변환합니다.

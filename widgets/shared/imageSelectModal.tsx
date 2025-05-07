@@ -7,7 +7,7 @@ import {
 } from '@/widgets/shared/custom-dialog';
 import { CustomCard, CustomCardContent } from '@/widgets/elements/custom-card';
 import { CustomButton } from '@/widgets/elements/custom-button';
-import { getImageModalData, ImageModalData } from '@/features/image/process/imageModalService';
+import { getImageModalData, ImageModalData } from '@/features/image/lib/imageModalService';
 import { useNotification } from '@/widgets/shared/custom-notification';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/widgets/shared/custom-tabs';
 import { Copy, Check } from 'lucide-react';
@@ -79,7 +79,7 @@ export function ImageSelectModal({ isOpen, onClose, imageId, imageUrl }: ImageSe
     <CustomDialog open={isOpen} onOpenChange={onClose}>
       <CustomDialogContent className="w-[95vw] max-w-4xl max-h-[90vh] overflow-y-auto p-0 md:p-6">
         <CustomDialogHeader className="p-4 md:p-4">
-            <CustomDialogTitle className="text-xl font-semibold">{imageData?.title}</CustomDialogTitle>
+            <CustomDialogTitle className="text-xl font-semibold">{imageData?.title}-{imageData?.id}</CustomDialogTitle>
         </CustomDialogHeader>
         
         <div className="space-y-4 p-4 md:p-0">
@@ -182,17 +182,28 @@ export function ImageSelectModal({ isOpen, onClose, imageId, imageUrl }: ImageSe
                         <div className="text-sm text-gray-500">모델</div>
                         <div className="font-medium mt-1">{imageData.model}</div>
                     </div>
-                        
                     <div className="p-3 border rounded-md">
                         <div className="text-sm text-gray-500">샘플러</div>
                         <div className="font-medium mt-1">{imageData.sampler}</div>
                     </div>
-                      </div>
-                        
-                      <div className="p-3 border rounded-md">
+                    <div className="p-3 border rounded-md">
+                        <div className="text-sm text-gray-500">vae</div>
+                        <div className="font-medium mt-1">{imageData.vae}</div>
+                    </div>
+                    <div className="p-3 border rounded-md">
+                        <div className="text-sm text-gray-500">스텝</div>
+                        <div className="font-medium mt-1">{imageData.steps}</div>
+                    </div>
+                    <div className="p-3 border rounded-md">
+                        <div className="text-sm text-gray-500">CFG Scale</div>
+                        <div className="font-medium mt-1">{imageData.cfgScale}</div>
+                    </div>
+                    <div className="p-3 border rounded-md">
                         <div className="text-sm text-gray-500">이미지 크기</div>
                         <div className="font-medium mt-1">{imageData.width} × {imageData.height}</div>
                       </div>
+                      </div>
+                        
                     </TabsContent>
                   </>
                 )}

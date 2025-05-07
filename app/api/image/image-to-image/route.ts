@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/shared/lib/auth";
 import { db } from "@/shared/lib/db";
-import { scheduleCloudflareUpload } from "@/features/image/process/imageService";
+import { scheduleCloudflareUpload } from "@/features/image/lib/imageService";
 import { getImageModelById } from "@/shared/models/image/imageModels";
 import { ImageGenerationStatus } from "@/features/image/image-category-types";
 

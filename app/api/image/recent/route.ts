@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/shared/lib/db";
-import { getImageSession } from "@/features/image/process/imageSessionService"; // 이미지 서비스용 세션 사용
+import { getImageSession } from "@/features/image/lib/imageSessionService"; // 이미지 서비스용 세션 사용
 
 
 // Cloudflare 이미지 URL에서 최적의 변형자를 선택하는 함수

@@ -2,7 +2,7 @@ import { ReactNode } from "react";
 import { Tooltip } from "./sub/tooltip";
 
 interface CustomTooltipProps {
-  title: string;
+  title?: string;
   description?: ReactNode;
   children: ReactNode;
   content?: ReactNode;

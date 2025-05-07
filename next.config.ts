@@ -26,6 +26,7 @@ const nextConfig: NextConfig = {
     ignoreBuildErrors: false,
   },
   images: {
+    formats: ['image/avif', 'image/webp'],
     remotePatterns: [
       {
         hostname: "avatars.githubusercontent.com",
@@ -46,7 +47,6 @@ const nextConfig: NextConfig = {
   // preload 경고 해결을 위한 설정
   experimental: {
     optimizeCss: true,
-    // 불필요한 prefetch 방지를 위한 설정
     optimisticClientCache: true,
   },
   // 이미지 최적화 방지를 위한 설정

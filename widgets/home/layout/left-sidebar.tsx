@@ -107,7 +107,7 @@ export default function LeftSidebar({ isVisible, onClose, onToggle }: LeftSideba
       {!isVisible && (
         <button
           onClick={onToggle}
-          className="fixed left-4 top-4 z-[9999] p-2 rounded-lg bg-neutral-800/70 hover:bg-neutral-700/70 transition-colors md:block hidden group"
+          className="fixed left-4 top-4 z-[9999] p-2 rounded-lg bg-neutral-800/70 hover:bg-neutral-700/70 transition-colors sm:block hidden group"
           title="사이드바 열기 (Alt + 1)"
         >
           <Bars3Icon className="w-5 h-5 text-neutral-300" />

@@ -1,6 +1,33 @@
+"use client";
+
 import Link from "next/link";
+import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
+import { useRouter } from "next/navigation";
 
 export default function SocialLogin() {
+  const supabase = createClientComponentClient();
+  const router = useRouter();
+
+  const handleGoogleLogin = async () => {
+    try {
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          queryParams:{
+            access_type: "offline",
+          },
+          redirectTo: `${window.location.origin}/auth/callback`,
+        },
+      });
+
+      if (error) {
+        console.error("구글 로그인 오류:", error);
+      }
+    } catch (error) {
+      console.error("구글 로그인 중 예외 발생:", error);
+    }
+  };
+
   return (
     <div className="flex flex-col gap-4">
       <Link
@@ -23,9 +50,9 @@ export default function SocialLogin() {
         <span>Github로 계속하기</span>
       </Link>
 
-      <Link
+      <button
+        onClick={handleGoogleLogin}
         className="flex h-12 items-center justify-center gap-2 rounded-lg bg-[#2A2A2A] text-white border border-[#3A3A3A] hover:bg-[#3A3A3A] transition-colors"
-        href="/google/start"
       >
         <svg className="size-5" viewBox="0 0 24 24">
           <path
@@ -46,7 +73,7 @@ export default function SocialLogin() {
           />
         </svg>
         <span>Google로 계속하기</span>
-      </Link>
+      </button>
     </div>
   );
 }

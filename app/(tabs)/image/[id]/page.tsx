@@ -4,9 +4,9 @@ import { db } from "@/shared/lib/db";
 import ImageDetailForm from "@/widgets/image/shared/imageDetailForm";
 
 interface PageProps {
-  params: {
+  params: Promise<{
     id: string;
-  };
+  }>;
 }
 
 // Cloudflare 이미지 URL에서 최적의 변형자를 선택하는 함수
@@ -38,7 +38,9 @@ function selectBestVariant(fileUrl: string, width: number, height: number): stri
 }
 
 export default async function AIImageDetailPage({ params }: PageProps) {
-  const imageId = parseInt(params.id);
+  // params를 비동기적으로 처리
+  const resolvedParams = await params;
+  const imageId = parseInt(resolvedParams.id);
   
   // 유효하지 않은 ID 처리
   if (isNaN(imageId)) {
@@ -54,7 +56,6 @@ export default async function AIImageDetailPage({ params }: PageProps) {
       id: true,
       title: true,
       fileUrl: true,
-      thumbnailUrl: true,
       prompt: true,
       negativePrompt: true,
       model: true,
@@ -89,7 +90,7 @@ export default async function AIImageDetailPage({ params }: PageProps) {
           id: image.id,
           title: image.title || "제목 없음",
           fileUrl: optimizedFileUrl,
-          thumbnailUrl: image.thumbnailUrl || optimizedFileUrl,
+          thumbnailUrl: optimizedFileUrl,
           settings: {
             prompt: image.prompt,
             negativePrompt: image.negativePrompt || "",

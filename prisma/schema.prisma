@@ -94,12 +94,12 @@ model AIImage {
   category       String
   tags           String?
   fileUrl        String         @db.LongText
-  thumbnailUrl   String         @db.LongText
+  thumbnailUrl   String         @db.Text
   width          Int
   height         Int
   format         String
-  prompt         String         @db.Text
-  negativePrompt String?        @db.Text
+  prompt         String         @db.LongText
+  negativePrompt String?        @db.LongText
   model          String
   settings       String?        @db.Text
   steps          Int?
@@ -169,7 +169,8 @@ model AIVideo {
   height       Int
   duration     Float
   format       String
-  prompt       String         @db.Text
+  prompt       String         @db.LongText
+  negativePrompt String?        @db.Text
   model        String
   settings     String?
   views        Int            @default(0)

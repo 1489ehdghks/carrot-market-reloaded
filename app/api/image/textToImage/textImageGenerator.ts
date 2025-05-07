@@ -47,11 +47,14 @@ export interface ImageGenerationParams {
 
 export interface ImageGenerationResult {
   id?: number;
-  imageUrl: string;
+  imageUrl?: string;
   modelId?: string;
   prompt?: string;
+  negativePrompt?: string;
   width?: number;
   height?: number;
+  model?: string;
+  source?: string;
   success: boolean;
   error?: string;
 }

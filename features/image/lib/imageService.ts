@@ -24,7 +24,7 @@ import {
   scheduleCloudflareUpload,
   processImageBackground,
   getImageUploadUrl
-} from './cloudflare/cloudflareUploader';
+} from '../process/cloudflare/cloudflareUploader';
 
 // 유틸리티 함수 모듈
 import {
@@ -36,14 +36,8 @@ import {
 // 세션 관리 및 DB 접근
 import { db } from "@/shared/lib/db";
 import { getCachedSession } from '@/app/api/image/textToImage/textImageGenerator';
-import getSession from "@/shared/lib/session";
 
-// 업로드 추적을 위한 맵 추가 
-const uploadTracker = new Map<string, {
-  status: 'pending' | 'completed' | 'failed',
-  timestamp: number,
-  result?: any
-}>();
+
 
 // 이미지 생성 후 저장이 필요한 경우 API 엔드포인트 호출
 export async function saveGeneratedImage(data: {

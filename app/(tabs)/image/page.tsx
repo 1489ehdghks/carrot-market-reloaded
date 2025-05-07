@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/widgets/shared/custom-tabs";
 import { CustomCard, CustomCardContent } from '@/widgets/elements/custom-card';
@@ -18,6 +18,7 @@ import { getUserImages, getPublicImages } from './actions';
 import { toast } from 'sonner';
 import EmptyImageState from '@/widgets/image/shared/EmptyImageForm';
 import { ImageSelectModal } from '@/widgets/shared/imageSelectModal';
+import { motion, AnimatePresence } from 'framer-motion';
 
 // 동적 임포트로 필요할 때만 로드되도록 설정
 const TextToImageForm = dynamic(() => import('@/widgets/image/textToImage/TextToImageForm'), {
@@ -98,6 +99,34 @@ export default function ImagePage() {
   const [isSelectedImagePublic, setIsSelectedImagePublic] = useState<boolean>(false); // 선택된 이미지의 공개 상태
   const [showAdultContent, setShowAdultContent] = useState<boolean>(false); // 성인 컨텐츠 표시 여부
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [imageDisplayMode, setImageDisplayMode] = useState<'selected' | 'result'>('selected'); // 이미지 표시 모드
+  const [resultImage, setResultImage] = useState<string | null>(null); // 결과 이미지 URL
+
+  // 탭 버튼 참조 생성
+  const selectedTabRef = useRef<HTMLButtonElement>(null);
+  const resultTabRef = useRef<HTMLButtonElement>(null);
+  
+  // 인디케이터 위치 상태
+  const [indicatorPosition, setIndicatorPosition] = useState(0);
+  const [indicatorWidth, setIndicatorWidth] = useState(0);
+  
+  // 탭 변경 시 인디케이터 위치 업데이트
+  useEffect(() => {
+    const updateIndicator = () => {
+      const activeRef = imageDisplayMode === 'selected' ? selectedTabRef.current : resultTabRef.current;
+      
+      if (activeRef) {
+        const { offsetLeft, offsetWidth } = activeRef;
+        setIndicatorPosition(offsetLeft);
+        setIndicatorWidth(offsetWidth);
+      }
+    };
+    
+    updateIndicator();
+    // 윈도우 크기 변경 시에도 업데이트
+    window.addEventListener('resize', updateIndicator);
+    return () => window.removeEventListener('resize', updateIndicator);
+  }, [imageDisplayMode]);
 
   // 이미지 목록 로딩
   // @ts-ignore - 타입 오류 무시, 브라우저에서는 문제없이 작동함
@@ -201,6 +230,8 @@ export default function ImagePage() {
   const handleImageGenerated = (imageUrl: string, imageId: string, title?: string) => {
     setSelectedImage(imageUrl);
     setSelectedImageId(imageId);
+    setResultImage(imageUrl); // 결과 이미지 저장
+    setImageDisplayMode('result'); // 새 이미지가 생성되면 결과 이미지 표시 모드로 전환
     setIsSelectedImagePublic(false); // 새로 생성된 이미지는 기본적으로 비공개
     if (title) {
       setImageTitle(title);
@@ -328,6 +359,7 @@ export default function ImagePage() {
     setSelectedImage(imageUrl);
     setSelectedImageId(imageId.toString());
     setIsSelectedImagePublic(isPublic);
+    setImageDisplayMode('selected'); // 이미지 선택 시 선택 이미지 표시 모드로 전환
     setIsModalOpen(true); // 모달 열기
   };
 
@@ -346,8 +378,6 @@ export default function ImagePage() {
 
   return (
     <div className="container mx-auto py-8 px-4">
-      <h1 className="text-2xl font-bold mb-6">이미지 생성</h1>
-      
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* 왼쪽: 입력 폼 영역 */}
         <div className="lg:col-span-2">
@@ -356,12 +386,12 @@ export default function ImagePage() {
             onValueChange={(value) => setActiveTab(value)}
             className="w-full"
           >
-            <TabsList className="mb-4">
-              <TabsTrigger value="text-to-image">text to image</TabsTrigger>
-              <TabsTrigger value="image-to-image">image to image</TabsTrigger>
-              <TabsTrigger value="edit-image">edit</TabsTrigger>
-              <TabsTrigger value="my-images">내 이미지</TabsTrigger>
-              <TabsTrigger value="public-images">공개 이미지</TabsTrigger>
+            <TabsList className="mb-4 w-full flex">
+              <TabsTrigger value="text-to-image" className="flex-auto">text to image</TabsTrigger>
+              <TabsTrigger value="image-to-image" className="flex-auto">image to image</TabsTrigger>
+              <TabsTrigger value="edit-image" className="flex-auto">이미지 편집</TabsTrigger>
+              <TabsTrigger value="my-images" className="flex-auto">내 이미지</TabsTrigger>
+              <TabsTrigger value="public-images" className="flex-auto">공개 이미지</TabsTrigger>
             </TabsList>
             
             {/* Text to Image 탭 */}
@@ -394,16 +424,21 @@ export default function ImagePage() {
             <TabsContent value="edit-image">
               <CustomCard>
                 <CustomCardContent className="pt-6">
-                  <ImageUploader 
-                    onImageUploaded={(file, preview) => console.log('편집할 이미지:', file, preview)} 
-                  />
-                  <div className="h-4"></div>
-                  {selectedImage && (
-                    <div className="p-4 border rounded-md">
-                      <h3 className="text-lg font-medium mb-3">이미지 편집</h3>
-                      <CustomButton onClick={() => toast.success('편집 기능이 곧 추가될 예정입니다.')}>
-                        편집 시작하기
-                      </CustomButton>
+                  {selectedImage ? (
+                    <EditImageForm 
+                      selectedImage={{
+                        url: selectedImage,
+                        id: selectedImageId || undefined,
+                        prompt: ''
+                      }}
+                      onImageEdited={(imageUrl, imageId) => handleImageGenerated(imageUrl, imageId?.toString() || '', '')}
+                    />
+                  ) : (
+                    <div className="flex flex-col items-center justify-center py-12 space-y-4">
+                      <p className="text-neutral-500">편집할 이미지를 선택해주세요</p>
+                      <ImageUploader 
+                        onImageUploaded={(file, previewUrl) => handleImageGenerated(previewUrl, '', '')}
+                      />
                     </div>
                   )}
                 </CustomCardContent>
@@ -519,7 +554,7 @@ export default function ImagePage() {
                                 loading="lazy"
                                 onError={(e) => {
                                   // 이미지 로드 실패 시 기본 이미지로 대체
-                                  (e.target as HTMLImageElement).src = '/image/placeholder.png';
+                                  (e.target as HTMLImageElement).src = '/image/no-image.png';
                                 }}
                               />
                               
@@ -732,18 +767,82 @@ export default function ImagePage() {
         
         {/* 오른쪽: 결과 및 옵션 영역 */}
         <div>
+          <div className="relative flex border-b border-neutral-700 mb-4 w-full">
+            <button
+              ref={selectedTabRef}
+              type="button"
+              onClick={() => setImageDisplayMode('selected')}
+              className={`py-2 px-4 text-md font-medium transition-colors ${
+                imageDisplayMode === 'selected' 
+                  ? 'text-white' 
+                  : 'text-neutral-400 hover:text-neutral-300'
+              }`}
+            >
+              선택 이미지
+            </button>
+            <button
+              ref={resultTabRef}
+              type="button"
+              onClick={() => resultImage ? setImageDisplayMode('result') : undefined}
+              className={`py-2 px-4 text-md font-medium transition-colors ${
+                imageDisplayMode === 'result' 
+                  ? 'text-white' 
+                  : resultImage 
+                    ? 'text-neutral-400 hover:text-neutral-300' 
+                    : 'text-neutral-600 cursor-not-allowed'
+              }`}
+            >
+              결과 이미지
+              {!resultImage && (
+                <span className="ml-2 text-xs opacity-75">(없음)</span>
+              )}
+            </button>
+            
+            {/* 애니메이션 인디케이터 - 결과 이미지가 없으면 숨김 처리하지 않음 */}
+            <div 
+              className="absolute bottom-0 h-0.5 bg-orange-500 transition-all duration-300 ease-in-out"
+              style={{ 
+                left: `${indicatorPosition}px`, 
+                width: `${indicatorWidth}px`,
+                opacity: 1
+              }}
+            />
+          </div>
+          
           <CustomCard className="mb-4 overflow-hidden">
             <CustomCardContent className="p-0">
-              {selectedImage && selectedImage.trim() ? (
-                <div className="relative aspect-square">
-                  <img 
-                    src={selectedImage} 
-                    alt="생성된 이미지" 
-                    className="w-full h-full object-cover"
-                  />
-                </div>
+              {imageDisplayMode === 'selected' ? (
+                // 선택 이미지 표시
+                selectedImage && selectedImage.trim() ? (
+                  <div className="relative aspect-square">
+                    <img 
+                      src={selectedImage} 
+                      alt="선택된 이미지" 
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = '/image/no-image.png';
+                      }}
+                    />
+                  </div>
+                ) : (
+                  <EmptyImageState />
+                )
               ) : (
-                <EmptyImageState />
+                // 결과 이미지 표시
+                resultImage && resultImage.trim() ? (
+                  <div className="relative aspect-square">
+                    <img 
+                      src={resultImage} 
+                      alt="결과 이미지" 
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = '/image/no-image.png';
+                      }}
+                    />
+                  </div>
+                ) : (
+                  <EmptyImageState />
+                )
               )}
             </CustomCardContent>
           </CustomCard>
@@ -819,7 +918,7 @@ export default function ImagePage() {
           imageId={selectedImageId} 
           isOpen={isPublishOpen}
           onOpenChange={(open) => setIsPublishOpen(open)}
-          onSuccess={(imageId, title, category) => {
+          onSuccess={(category) => {
             toast.success(`이미지가 ${category} 카테고리로 공개되었습니다`);
             // 이미지 목록 새로고침
             refetchImages();

@@ -8,6 +8,7 @@ export interface ImageModalData {
   width: number;
   height: number;
   steps: number;
+  vae?: string;
   cfgScale: number;
   sampler: string;
   seed?: number;

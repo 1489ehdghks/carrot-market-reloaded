@@ -4,11 +4,11 @@ import React, { useState, useEffect, useCallback, useMemo } from "react";
 import ModelSelector from "../shared/ModelSelector";
 import { AI_MODELS, getDefaultModel, getModelById } from "@/shared/models/image/textModels";
 import { SAMPLER_OPTIONS, getDefaultSampler } from "@/shared/models/image/samplers";
-import { VAE_OPTIONS, getDefaultVae } from "@/shared/models/image/vae";
+import { getDefaultVae } from "@/shared/models/image/vae";
 import { CollapsiblePanel } from "../shared/CollapsiblePanel";
 import { CustomTooltip } from "@/widgets/shared/custom-tooltip";
 import { useNotification } from "@/widgets/shared/custom-notification";
-import { calculateTokens, calculateImageCost, validateImageGeneration } from '@/features/image/process/imageGeneration';
+import { calculateTokens } from '@/features/image/process/imageGeneration';
 import PromptTextarea from "../shared/PromptTextarea";
 import { 
   handleImageGenerationError, 
@@ -24,7 +24,7 @@ import {
   CustomSelectValue 
 } from "@/widgets/elements/custom-select";
 import { generateImageAction } from '@/app/(tabs)/image/actions';
-import { Loader2, Wand2, Info } from "lucide-react";
+import { Info } from "lucide-react";
 
 // 클라우드플레어 업로드 및 DB 저장 관련 타입 정의
 interface GenerationResult {

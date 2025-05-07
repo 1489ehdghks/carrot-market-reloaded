@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import getSession from "@/shared/lib/session";
 import { z } from "zod";
-import { getSpecialModelById } from "@/shared/models/image/specialModels";
+import { getEditModelById } from "@/shared/models/image/editModels";
 
 /**
  * Face Swap API 엔드포인트
@@ -64,7 +64,7 @@ export async function POST(request: Request) {
     const { model_id = 'face-swap', target_image, source_image, strength, ...additionalParams } = validationResult.data;
     
     // 모델 정보 가져오기
-    const modelInfo = getSpecialModelById(model_id);
+    const modelInfo = getEditModelById(model_id);
     if (!modelInfo || modelInfo.category !== 'faceswap') {
       return NextResponse.json({ 
         error: `유효하지 않은 Face Swap 모델 ID: ${model_id}` 

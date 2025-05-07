@@ -1,20 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getImageSession } from '@/features/image/process/imageSessionService';
+import { getImageSession } from '@/features/image/lib/imageSessionService';
 import { db } from '@/shared/lib/db';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getImageSession();
     if (!session?.id) {
       return NextResponse.json({ error: '로그인이 필요합니다' }, { status: 401 });
     }
-
+    const resolvedParams = await params;
+    
     const image = await db.aIImage.findUnique({
       where: { 
-        id: Number(params.id),
+        id: Number(resolvedParams.id),
         userId: session.id
       },
       include: {

@@ -6,7 +6,7 @@ npx prisma studio
 
 #DB
 dev
-pascale login
+pscale login
 pscale connect lumi dev
 
 push

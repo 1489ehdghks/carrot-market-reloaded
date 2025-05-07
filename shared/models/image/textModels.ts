@@ -3,6 +3,26 @@ declare global {
   var _modelApiCache: Record<string, { modelId: string; versionId: string }>;
 }
 
+/**
+ * 가격 문자열에서 달러 값을 추출하고 토큰 가격으로 변환합니다.
+ * @param priceStr 가격 문자열 (예: "$0.0053")
+ * @returns 토큰 가격 (정수로 반올림)
+ */
+function calculateTokenPrice(priceStr: string | undefined): number | undefined {
+  if (!priceStr) return undefined;
+  
+  // 정규식을 사용하여 달러 값 추출
+  const match = priceStr.match(/\$?(\d+\.?\d*)/);
+  if (!match || !match[1]) return undefined;
+  
+  // 추출된 달러 값에 2300 곱하기
+  const dollarValue = parseFloat(match[1]);
+  if (isNaN(dollarValue)) return undefined;
+  
+  // 토큰 가격 반올림하여 정수로 반환
+  return Math.round(dollarValue * 2300);
+}
+
 // 이미지 생성 모델 정보
 export interface AIModel {
   id: string;
@@ -60,6 +80,7 @@ export const AI_MODELS: AIModel[] = [
     apiModel: "aisha-ai-official/pony-realism-v2.2:142ae19de7553e50fe729910b35734eb233d8267661b8355be5a7ab0b457db1c",
     isDefault: true,
     price: "$0.0068",
+    tokenPrice: calculateTokenPrice("$0.0068"),
     
     modelTags: {
       base: 'PONY',
@@ -115,6 +136,7 @@ VAE: Euler a
     category: "realistic",
     apiModel: "charlesmccarthy/pony-sdxl:b070dedae81324788c3c933a5d9e1270093dc74636214b9815dae044b4b3a58a",
     price: "$0.0053 / 이미지 (188회 / $1)",
+    tokenPrice: calculateTokenPrice("$0.0053"),
     
     modelTags: {
       base: 'PONY',
@@ -168,7 +190,8 @@ VAE: default
     vae: "default",
     category: "2D",
     apiModel: "delta-lock/ponynai3",
-    price: "$0.030 / 이미지 (33회 / $1)",
+    price: "$0.030",
+    tokenPrice: calculateTokenPrice("$0.030"),
     
     modelTags: {
       base: 'PONY',
@@ -222,6 +245,7 @@ CFG 스케일: 8
     category: "2D",
     apiModel: "aisha-ai-official/uwazumimix-v3.5:dbf8dd5a4c40f9d91ba1813ed4dd384f398aa649a9c69683b5fa13b06a274626",
     price: "0.01",
+    tokenPrice: calculateTokenPrice("0.01"),
     
     modelTags: {
       base: 'PONY',
@@ -291,6 +315,7 @@ Negative prompt: "score_4, score_5, score_6, source_pony, source_furry, blur, di
     category: "All",
     apiModel: "aisha-ai-official/flux.1schnell-uncensored-rasch3:7223ac95cada3c30951ad83ab63d09794c3f038ca69d5a644087510c07440e29",
     price: "0.0053",
+    tokenPrice: calculateTokenPrice("0.0053"),
     
     modelTags: {
       base: 'Flux',
@@ -344,6 +369,7 @@ CFG 스케일: 3.5
     category: "realistic",
     apiModel: "wglint/3_rv:f543bb04f1cf613c3df1cdb8219288c6b44abc2c39f006c188f8d22a9598bd47",
     price: "0.0038",
+    tokenPrice: calculateTokenPrice("0.0038"),
     
     modelTags: {
       base: 'SD',
@@ -400,6 +426,7 @@ VAE : 지원안함.
     category: "All",
     apiModel: "black-forest-labs/flux-schnell",
     price: "0.003",
+    tokenPrice: calculateTokenPrice("0.003"),
     
     modelTags: {
       base: 'Flux',
@@ -452,6 +479,7 @@ CFG 스케일: 7
     category: "All",
     apiModel: "black-forest-labs/flux-1.1-pro",
     price: "이미지당 과금 방식 (정확한 가격 문의 필요)",
+    tokenPrice: calculateTokenPrice("이미지당 과금 방식 (정확한 가격 문의 필요)"),
     
     modelTags: {
       base: 'Flux',
@@ -504,6 +532,7 @@ CFG 스케일: 9
     category: "All",
     apiModel: "aisha-ai-official/nsfw-flux-dev:fb4f086702d6a301ca32c170d926239324a7b7b2f0afc3d232a9c4be382dc3fa",
     price: "0.0053",
+    tokenPrice: calculateTokenPrice("0.0053"),
     
     modelTags: {
       base: 'Flux',
@@ -556,6 +585,7 @@ CFG 스케일: 3.5
     apiModel: "aisha-ai-official/realism-il-v3:bb8857fc0640b29bec38c33d56884a7c7e6359ad4cfc26e937732872360d8a0a",
     isDefault: false,
     price: "$0.0049",
+    tokenPrice: calculateTokenPrice("$0.0049"),
     
     modelTags: {
       base: 'SD',
@@ -613,6 +643,7 @@ VAE: Euler a
     category: "realistic",
     apiModel: "aisha-ai-official/projectil-v3:55ca649276a564dda172aed3cdcde0221bb922ef64bdd1ce5e9adaf001658181",
     price: "0.0052",
+    tokenPrice: calculateTokenPrice("0.0052"),
     
     modelTags: {
       base: 'PONY',
@@ -694,6 +725,7 @@ scheduler: DPM++ 2M SDE Karras
     category: "All",
     apiModel: "asiryan/realism-xl:ff26a1f71bc27f43de016f109135183e0e4902d7cdabbcbb177f4f8817112219",
     price: "0.0078",
+    tokenPrice: calculateTokenPrice("0.0078"),
     
     modelTags: {
       base: 'PONY',
@@ -749,11 +781,25 @@ if (new Set(modelIds).size !== modelIds.length) {
 
 export function getDefaultModel(): AIModel {
   const defaultModel = AI_MODELS.find(model => model.isDefault);
-  return defaultModel || AI_MODELS[0];
+  const model = defaultModel || AI_MODELS[0];
+  
+  if (model && !model.tokenPrice && model.price) {
+    // tokenPrice가 없는 경우 price에서 계산
+    model.tokenPrice = calculateTokenPrice(model.price);
+  }
+  
+  return model;
 }
 
 export function getModelById(id: string): AIModel | undefined {
-  return AI_MODELS.find(model => model.id === id);
+  const model = AI_MODELS.find(model => model.id === id);
+  
+  if (model && !model.tokenPrice && model.price) {
+    // tokenPrice가 없는 경우 price에서 계산
+    model.tokenPrice = calculateTokenPrice(model.price);
+  }
+  
+  return model;
 }
 
 // 카테고리별 이름 정의

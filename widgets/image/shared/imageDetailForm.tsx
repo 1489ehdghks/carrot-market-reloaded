@@ -31,6 +31,7 @@ interface ImageDetailProps {
 }
 
 export default function ImageDetailForm({ image }: ImageDetailProps) {
+  
   // 텍스트 복사 함수
   const copyToClipboard = (text: string, message: string = '텍스트가 복사되었습니다') => {
     navigator.clipboard.writeText(text)
@@ -49,6 +50,7 @@ export default function ImageDetailForm({ image }: ImageDetailProps) {
       minute: '2-digit'
     });
   };
+
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
