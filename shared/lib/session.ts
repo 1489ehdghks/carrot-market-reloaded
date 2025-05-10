@@ -12,7 +12,7 @@ export const sessionOptions = {
         secure: process.env.NODE_ENV === "production",
         httpOnly: true,
         sameSite: "lax" as const, // CSRF 보호
-        maxAge: 60 * 60 * 24 * 7, // 일주일
+        maxAge: 60 * 60 * 24 * 3
     }
 };
 

@@ -42,6 +42,7 @@ export async function GET(request: NextRequest) {
     // 환경 변수 확인
     const clientId = process.env.GITHUB_CLIENT_ID;
     const clientSecret = process.env.GITHUB_CLIENT_SECRET;
+    const requestUrl = new URL(request.url);
     
     if (!clientId || !clientSecret) {
       console.error("환경 변수 오류:", { clientId: !!clientId, clientSecret: !!clientSecret });
@@ -55,10 +56,7 @@ export async function GET(request: NextRequest) {
     const code = request.nextUrl.searchParams.get("code");
     if (!code) {
       console.error("코드 없음");
-      return NextResponse.json(
-        { error: "GitHub 인증 코드가 제공되지 않았습니다." },
-        { status: 400 }
-      );
+      return NextResponse.redirect(new URL("/", requestUrl.origin));
     }
     
     console.log("GitHub 인증 시작:", { code: code.slice(0, 5) + "..." });
@@ -168,7 +166,7 @@ export async function GET(request: NextRequest) {
         console.log("기존 사용자 로그인:", existingUser.id);
         await signIn(existingUser.id);
         console.log("로그인 성공, 리다이렉트 실행");
-        return redirect("/profile");
+        return NextResponse.redirect(new URL("/profile", request.url));
       }
 
       // 새 사용자 생성

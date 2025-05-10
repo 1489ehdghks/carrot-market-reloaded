@@ -7,7 +7,7 @@ import LoginModal from "@/widgets/auth/layout/LoginModal";
 import bgMobile from "@/public/image/mbg.png";
 import bgDesktop from "@/public/image/dbg2.png";
 
-// 최적화된 HeroSection 컴포넌트
+
 export default function HeroSection() {
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
@@ -34,8 +34,7 @@ export default function HeroSection() {
     
     setMousePosition({ x, y });
     
-    // 마우스에 따라 radial gradient 움직이기 - transform 최적화
-    const moveX = x * 30; // 최대 30px 이동
+    const moveX = x * 30;
     const moveY = y * 30;
     
     // requestAnimationFrame으로 성능 최적화
@@ -88,7 +87,7 @@ export default function HeroSection() {
     <motion.section
       ref={sectionRef}
       className="relative h-screen w-full overflow-hidden flex flex-col items-center justify-center bg-black"
-      style={{ opacity, position: "relative" }}
+      style={{ opacity }}
     >
       {/* 배경 이미지 */}
       <div className="absolute inset-0 z-0">
@@ -97,20 +96,20 @@ export default function HeroSection() {
             src={bgDesktop}
             alt="Lumi AI"
             fill
-            sizes="100vw"
+            sizes="100%"
             priority
-            quality={85}
+            quality={90}
             style={{ objectFit: 'cover', objectPosition: 'center' }}
           />
         </div>
-        <div className="block md:hidden relative w-full h-full">
+        <div className="block md:hidden relative w-full h-full ">
           <Image
             src={bgMobile}
             alt="Lumi AI"
             fill
-            sizes="100vw"
+            sizes="100%"
             priority
-            quality={85}
+            quality={90}
             style={{ objectFit: 'cover', objectPosition: 'center' }}
           />
         </div>
@@ -162,13 +161,28 @@ export default function HeroSection() {
               >
                 <motion.h1 
                   className="text-3xl md:text-4xl lg:text-4xl font-heading font-bold bg-clip-text text-transparent bg-gradient-to-r from-orange-500 via-orange-300 to-amber-200"
-                  {...titleAnimation}
+                  animate={{ 
+                    textShadow: [
+                      '0 2px 10px rgba(251,191,36,0.5)',
+                      '0 2px 20px rgba(251,191,36,0.8)',
+                      '0 2px 10px rgba(251,191,36,0.5)',
+                    ] 
+                  }}
+                  transition={{ duration: 2, repeat: Infinity }}
                 >
                   AI로 만드는
                 </motion.h1>
+
                 <motion.h2
                   className="text-2xl md:text-2xl lg:text-3xl font-heading font-bold mt-2 bg-clip-text text-white"
-                  {...subtitleAnimation}
+                  animate={{ 
+                    textShadow: [
+                      '0 2px 10px rgba(251,191,36,0.3)',
+                      '0 2px 20px rgba(251,191,36,0.6)',
+                      '0 2px 10px rgba(251,191,36,0.3)',
+                    ] 
+                  }}
+                  transition={{ duration: 2, repeat: Infinity, delay: 0.3 }}
                 >
                   당신의 상상을 현실로
                 </motion.h2>

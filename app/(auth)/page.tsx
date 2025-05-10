@@ -6,7 +6,7 @@ import { motion } from "framer-motion";
 import { Toaster } from "react-hot-toast";
 import HeroSection from "../../widgets/home/sections/HeroSection";
 
-// 다른 섹션들은 지연 로딩
+
 const FeaturesSection = dynamic(() => import("../../widgets/home/sections/FeaturesSection"), {
   loading: () => null,
   ssr: true,
@@ -27,7 +27,6 @@ interface LazyLoadSectionProps {
   children: React.ReactNode;
 }
 
-// IntersectionObserver를 사용하여 뷰포트에 보일 때만 컴포넌트를 보여주는 컴포넌트
 const LazyLoadSection: React.FC<LazyLoadSectionProps> = ({ id, children }) => {
   const [isVisible, setIsVisible] = useState(false);
   const sectionRef = useRef<HTMLDivElement>(null);
@@ -37,7 +36,6 @@ const LazyLoadSection: React.FC<LazyLoadSectionProps> = ({ id, children }) => {
       (entries) => {
         if (entries[0].isIntersecting) {
           setIsVisible(true);
-          // 한 번 로드되면 관찰 중지
           if (sectionRef.current) {
             observer.unobserve(sectionRef.current);
           }
@@ -99,17 +97,15 @@ export default function HomePage() {
       </div>
 
       <motion.main
-        className="overflow-x-hidden"
+        className="overflow-x-hidden relative"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.5 }}
       >
-        {/* 히어로 섹션은 즉시 렌더링 */}
-        <section id="hero-section">
+        <section id="hero-section" className="relative">
           <HeroSection />
         </section>
 
-        {/* 나머지 섹션들은 IntersectionObserver로 지연 로딩 */}
         <LazyLoadSection id="features-section">
           <FeaturesSection />
         </LazyLoadSection>

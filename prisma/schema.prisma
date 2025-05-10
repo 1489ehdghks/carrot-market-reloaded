@@ -42,9 +42,11 @@ model User {
   totalCreated        Int                  @default(0)
   totalLikes          Int                  @default(0)
   totalViews          Int                  @default(0)
+  tokenBalance              Int                  @default(0)
   badges              UserBadge[]
   achievements        UserAchievement[]
   certifications      UserCertification[]
+  tokenTransactions   TokenTransaction[]
   tokens              SMSToken[]
   aiImages            AIImage[]
   aiVideos            AIVideo[]
@@ -218,6 +220,22 @@ model VideoLike {
 
   @@id([userId, videoId])
   @@index([videoId])
+}
+
+model TokenTransaction {
+  id          Int      @id @default(autoincrement())
+  amount      Int      // 거래 토큰 수량 (양수: 획득, 음수: 사용)
+  type        String   // 거래 유형 (purchase, reward, usage, transfer 등)
+  description String   // 거래 설명
+  balance     Int      // 거래 후 잔액
+  created_at  DateTime @default(now())
+  userId      Int
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  metadata    Json?    // 추가 정보 (서비스 유형, 관련 아이템 ID 등)
+  
+  @@index([userId])
+  @@index([created_at])
+  @@index([type])
 }
 
 model Request {
